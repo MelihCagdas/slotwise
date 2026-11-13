@@ -1,28 +1,28 @@
 # Jira Sprint Calendar
 
-See your Jira sprint tickets in Google Calendar, laid out across the days of the sprint.
+**Your sprint, on your calendar.** Your Jira tickets appear in Google Calendar, laid out across the days of the sprint, next to your meetings. No app to learn, no board to keep open.
 
-One script, copied into your own Google account. No server, no app to install, nothing to tune. It reads Jira and never changes it.
+![A calendar week with Jira tickets shown as bars above the meetings](docs/preview.svg)
 
-```
-            Mon        Tue        Wed        Thu        Fri
-all day   [ APP-12 Login flow (3 pt)  ]
-                                 [ APP-15 Fix export (1 pt) ]
-                                            [ APP-9 Add audit log (2 pt)   ]
-09:00       your meetings, untouched
-```
+## Why
 
-## What it does
+Remote teams run on two tools that never meet. Jira knows what you committed to. Your calendar knows where your time goes. Nobody sees both at once, so the same things keep happening:
 
-Every morning it:
+- A sprint looks fine on the board and impossible on the calendar.
+- A teammate books a meeting on the day you planned to finish a ticket, because they had no way to know.
+- "What are you working on this week?" gets asked in every standup.
 
-1. Reads your open tickets in the active sprint.
-2. Puts the work you have in progress first, then the rest in board order.
-3. Gives each ticket a share of the remaining sprint days, based on its story points.
-4. Draws each ticket as an all-day bar in a separate calendar called **Jira plan**.
-5. Does the same for tickets in your coming sprints, in grey, in the weeks after.
+Jira Sprint Calendar puts the plan where people already look. Open your calendar and you see what you are delivering each day, this sprint and the next.
 
-The bars are marked "free", so they never block your time or show you as busy. Each bar links back to its ticket.
+## What you get
+
+- **Your sprint as a plan.** Every open ticket assigned to you becomes an all-day bar on the days it should take, sized by its story points.
+- **In-progress work first.** What you have started is placed on today and the next days. The rest follows in board order.
+- **The next sprints too.** Tickets already placed in coming sprints are drawn in grey in the weeks after.
+- **Always current.** It refreshes every morning. Finish a ticket and its bar goes away; move one into the sprint and it appears.
+- **Nothing to tune.** There is no "hours per point" setting. It works whether your team treats a point as an hour or a day.
+- **Safe by design.** It reads Jira and never changes it. It writes to its own calendar, called **Jira plan**, and never touches your events. Hide it with one click, or remove it completely with one command.
+- **Private.** It runs inside your own Google account. Your data goes from Jira to your calendar and nowhere else.
 
 ## Set up in 5 minutes
 
@@ -41,9 +41,9 @@ You need a Jira Cloud account and a Google account.
 4. **Check the time zone.** Still in **Project Settings**, make sure **Time zone** is your own. The script uses it to decide what "today" is.
 5. **Run it once.** Back in the editor, pick `setup` in the function list and press **Run**. Google asks for permission to manage your calendars and to contact Jira. Because this is your own script, Google may first show "Google hasn't verified this app": choose **Advanced**, then **Go to (your project name)**, then approve.
 
-Open Google Calendar. A new calendar called **Jira plan** now shows your tickets. It refreshes by itself every morning.
+Open Google Calendar. A new calendar called **Jira plan** now shows your tickets. It refreshes by itself every morning. To refresh at any time, run `sync`.
 
-To refresh at any time, run `sync`.
+A one-click version with no token and no script to paste is planned. See [Roadmap](#roadmap).
 
 ## How it decides
 
@@ -52,12 +52,12 @@ To refresh at any time, run `sync`.
 - **Size.** Story points, when your tickets have them. If none do, the original time estimate. If there is neither, every ticket counts the same. A ticket with no size gets the average of the others.
 - **Spread.** Each ticket gets a share of the remaining working days equal to its share of the total size, rounded to whole days. A large ticket spans several days. Small tickets share a day. Everything always fits inside the sprint.
 - **Days.** Monday to Friday. Days where you have an out-of-office event covering 09:00 to 17:00 are skipped.
-- **Future sprints.** Tickets already placed in a coming sprint are drawn too, in grey, after the current sprint. Jira only gives a sprint its dates when it starts, so until then the script assumes each coming sprint follows straight on and lasts as many working days as the current one. The bar's description says "dates estimated". It corrects itself once the sprint starts.
+- **Future sprints.** Tickets in a coming sprint are drawn in grey after the current sprint. Jira only gives a sprint its dates when it starts, so until then the script assumes each coming sprint follows straight on and lasts as many working days as the current one. The bar's description says "dates estimated". It corrects itself once the sprint starts.
 - **No sprint.** If you have no open or coming sprint, for example on a Kanban board, it takes your first 20 open tickets and spreads them over the next 10 working days.
 
-Because the spread is proportional, there is no "hours per point" setting. It works the same whether your team treats a point as an hour or as a day.
-
 When you finish a ticket, its bar goes away at the next refresh and the remaining tickets spread out to fill the days. Each morning it redraws from today forward. Earlier days are left as they were, so you keep a record of what was planned. It only ever changes bars it created itself.
+
+Colours: dark green is work in progress, light green is the rest of the current sprint, grey is a future sprint.
 
 ## Optional settings
 
@@ -77,14 +77,27 @@ Run `remove`. It deletes the daily timer and the **Jira plan** calendar. Nothing
 
 ## Privacy
 
-The script runs inside your own Google account. Your Jira token is stored in your script's properties and is sent only to your Jira site. No data goes anywhere else.
+The script runs inside your own Google account. Your Jira token is stored in your script's properties and is sent only to your Jira site. No data goes anywhere else, and there is no server run by this project.
 
-## Limits
+## Limits today
 
 - Jira Cloud only. Jira Server and Data Center are not supported.
 - Google Calendar only.
 - Shows your own tickets only.
-- It plans whole days. It does not schedule hours around your meetings.
+- It plans whole days. It does not block hours around your meetings, and the bars are marked "free", so they do not stop anyone booking you.
+- Setup needs a Jira API token and a pasted script.
+
+## Roadmap
+
+These are planned, not built:
+
+- **One-click install.** A Google Calendar add-on: install it, sign in to Jira, done. No token, no script.
+- **A ticket list inside Calendar.** A side panel with your sprint tickets, to place one on a day yourself.
+- **Focus blocks.** Optionally hold real time for a ticket, so people booking you see that the time is taken and what for.
+- **Team view.** See a teammate's plan next to your own.
+- **More calendars.** Outlook after Google.
+
+Ideas and pull requests are welcome. Open an issue to discuss anything larger first.
 
 ## If something goes wrong
 
