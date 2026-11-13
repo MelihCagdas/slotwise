@@ -34,7 +34,7 @@ Slotwise does your calendar work for you, so you keep your focus.
 
 No token. No server. Free and open source. It only reads Jira, from your own browser.
 
-## Set up in 5 minutes
+## Install
 
 You need Chrome or Edge on a computer, a Jira Cloud account, and Google Calendar.
 
