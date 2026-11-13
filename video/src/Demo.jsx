@@ -4,7 +4,7 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame} from 'remotion';
 import {tween, appear, along} from './theme';
-import {S, mono, Mark, Tag} from './shared';
+import {S, mono, Mark, Tag, pop} from './shared';
 
 const W = 1560, H = 850, GUT = 70, HEAD = 84, ALL = 44, HOUR = 66, FIRST = 8;
 const colW = (W - GUT) / 7;
@@ -258,7 +258,7 @@ const path = (f, keys) => along(f, keys.map(([frame, p]) => ({f: frame, x: p[0],
 /** Folded in the corner; a click opens it. */
 export const OpenDemo = () => {
   const f = useCurrentFrame();
-  const open = tween(f, 44, 60, 0, 1);
+  const open = Math.min(1.04, pop(f, 44, {damping: 14}));
   const p = path(f, [[0, [1180, 420]], [12, [1180, 420]], [38, AT.tab], [78, AT.tab], [108, AT.card(1)], [135, AT.card(3)], [162, AT.card(2)]]);
   const hover = f > 104 && f < 120 ? 1 : f >= 120 && f < 148 ? 3 : f >= 148 ? 2 : -1;
   return (
@@ -281,7 +281,7 @@ export const DragDemo = () => {
   const p = path(f, [[0, AT.card(2)], [10, AT.search], [52, AT.search], [66, AT.card(0)], [74, AT.card(0)], [118, slot], [128, slot],
     [150, edge], [162, edge], [186, [edge[0], hourY(12.5) - 4]], [198, [edge[0], hourY(12.5) - 4]]]);
   const dragging = f >= 74 && f < 124;
-  const dropped = appear(f, 124, 8);
+  const dropped = Math.min(1, appear(f, 124, 6)) * pop(f, 124, {damping: 11});
   const hours = 1 + 1.5 * stretch;
   const end = 11 + 1.5 * stretch;
   const label = '10:00 – ' + (end % 1 ? Math.floor(end) + ':30' : end + ':00');
@@ -370,7 +370,7 @@ export const PlanDemo = () => {
   const show = Math.min(appear(f, 34, 9), 1 - appear(f, END + 16, 9));
   const placed = {'APP-212': 1};
   const bars = PLAN.map((b, i) => {
-    const a = f < END + 12 ? 0 : appear(f, END + 18 + i * 5, 10);
+    const a = f < END + 12 ? 0 : pop(f, END + 18 + i * 5, {damping: 12});
     placed[b.key] = f >= END + 12 ? 1 : 0;
     return {...b, a};
   });
@@ -438,8 +438,8 @@ export const HeadsDemo = () => {
   const second = tween(f, 132, 146, 0, 1);
 
   // Part one: the invitation, then the note to the person who sent it.
-  const invite = appear(f, 14, 10);
-  const note = appear(f, 62, 12);
+  const invite = pop(f, 14, {damping: 11});
+  const note = pop(f, 62, {damping: 13});
   const line = tween(f, 46, 66, 0, 1);
   const from = [colX(3) - 6, hourY(11.5)];
   const to = [colX(4) + 30, hourY(13) + 40];

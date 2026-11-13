@@ -1,7 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Sequence, Audio, staticFile, useCurrentFrame, interpolate} from 'remotion';
 import {C, tween, appear} from './theme';
-import {page, ui, shadow, sec, Clip, Tag, Fade, Mark, S, mono, EventCard} from './shared';
+import {page, ui, shadow, sec, Clip, Tag, Fade, Mark, S, mono, EventCard, display, pop, Words, Backdrop} from './shared';
 import {OpenDemo, DragDemo, PlanDemo, ViewsDemo, CustomDemo, HeadsDemo} from './Demo';
 
 // The voice-over, line by line: [file, length in seconds, key phrases].
@@ -24,7 +24,10 @@ const VO = {
 const LEN = {hook: 5.9, pain: 8.0, name: 2.2, pool: 5.4, drag: 6.6, plan: 7.2, team: 7.6, heads: 7.8, custom: 4.2, values: 4.4, start: 6.0};
 export const PROMO_FRAMES = sec(Object.values(LEN).reduce((a, b) => a + b, 0));
 
-const rise = (f, at, len = 10) => ({opacity: appear(f, at, len), transform: `translateY(${(1 - appear(f, at, len)) * 12}px)`});
+const rise = (f, at, len = 10) => {
+  const o = appear(f, at, len);
+  return {opacity: o, transform: `translateY(${(1 - pop(f, at)) * 26}px)`, filter: `blur(${(1 - o) * 6}px)`};
+};
 
 /**
  * Plays one voice-over line and flashes up its key phrases as they are
@@ -49,6 +52,7 @@ const Say = ({line, at = 0.2, bottom = 56, size = 46}) => {
   starts.forEach((start, i) => { if (f >= start) current = i; });
   if (current === -1) return audio;
   const a = appear(f, starts[current], 9);
+  const land = pop(f, starts[current]);
   const row = {position: 'absolute', left: 0, right: 0, bottom, display: 'flex', justifyContent: 'center'};
   return (
     <>
@@ -56,7 +60,7 @@ const Say = ({line, at = 0.2, bottom = 56, size = 46}) => {
       {current > 0 && a < 1 ? (
         <div style={row}><EventCard text={keys[current - 1][1]} time={slotTime(SLOTS[line + (current - 1)])} out={a} size={size} /></div>
       ) : null}
-      <div style={row}><EventCard text={keys[current][1]} time={slotTime(SLOTS[line + current])} a={a} size={size} /></div>
+      <div style={row}><EventCard text={keys[current][1]} time={slotTime(SLOTS[line + current])} a={a} land={land} size={size} /></div>
     </>
   );
 };
@@ -84,9 +88,13 @@ const Hook = () => {
   return (
     <AbsoluteFill style={page}>
       <div style={{position: 'absolute', left: 0, right: 0, top: 96, textAlign: 'center'}}>
-        <div style={{fontSize: 56, fontWeight: 500, letterSpacing: -1.4, color: S.secondary, ...rise(f, 8)}}>Jira knows what you promised</div>
-        <div style={{fontSize: 56, fontWeight: 500, letterSpacing: -1.4, color: S.secondary, marginTop: 8, ...rise(f, 60)}}>Your calendar knows where your time goes</div>
-        <div style={{fontSize: 120, fontWeight: 600, letterSpacing: -4.5, marginTop: 20, color: S.brand, ...rise(f, 119, 8)}}>They never meet</div>
+        <div style={{fontFamily: display, fontSize: 62, fontWeight: 600, letterSpacing: -1.8, color: S.secondary}}>
+          <Words text="Jira knows what you promised" at={8} mark={(w) => (w === 'Jira' || w === 'promised' ? S.ink : null)} />
+        </div>
+        <div style={{fontFamily: display, fontSize: 62, fontWeight: 600, letterSpacing: -1.8, color: S.secondary, marginTop: 6}}>
+          <Words text="Your calendar knows where your time goes" at={60} mark={(w) => (w === 'calendar' || w === 'time' ? S.ink : null)} />
+        </div>
+        <div style={{fontFamily: display, fontSize: 132, fontWeight: 800, letterSpacing: -5.5, marginTop: 14, color: S.brand}}><Words text="They never meet" at={119} step={4} /></div>
       </div>
       <div style={{...card, left: 420 - apart, opacity: appear(f, 10, 10)}}>
         <div style={{fontWeight: 600, fontSize: 20, marginBottom: 12}}>Sprint board</div>
@@ -156,11 +164,12 @@ const Name = () => {
   const f = useCurrentFrame();
   return (
     <AbsoluteFill style={{...page, alignItems: 'center', justifyContent: 'center'}}>
-      <div style={{display: 'flex', alignItems: 'center', gap: 36, ...rise(f, 2, 8)}}>
-        <Mark size={132} />
-        <div style={{fontSize: 164, fontWeight: 600, letterSpacing: -7}}>Slotwise</div>
+      <Backdrop />
+      <div style={{display: 'flex', alignItems: 'center', gap: 36}}>
+        <div style={{transform: `scale(${pop(f, 2, {damping: 10})}) rotate(${(1 - pop(f, 2)) * -14}deg)`}}><Mark size={132} /></div>
+        <div style={{fontFamily: display, fontSize: 172, fontWeight: 800, letterSpacing: -8, ...rise(f, 5, 8)}}>Slotwise</div>
       </div>
-      <div style={{fontSize: 40, color: S.secondary, marginTop: 28, ...rise(f, 12, 8)}}>Your Jira tickets, on your calendar</div>
+      <div style={{fontSize: 42, color: S.secondary, marginTop: 26}}><Words text="Your Jira tickets, on your calendar" at={13} step={2} /></div>
       <Say line="name" at={0.3} />
     </AbsoluteFill>
   );
@@ -198,8 +207,8 @@ const Values = () => {
         <React.Fragment key={time}>
           <div style={{position: 'absolute', left: X, top: Y + i * RH - 14, fontFamily: mono, fontSize: 24, color: S.muted}}>{time}</div>
           <div style={{position: 'absolute', left: X + 168, right: 440, top: Y + i * RH + 12, height: RH - 24, boxSizing: 'border-box',
-            background: S.surface, border: `1px solid ${S.line}`, borderLeft: `6px solid ${S.event}`, borderRadius: 12,
-            padding: '0 36px', display: 'flex', alignItems: 'center', fontSize: 76, fontWeight: 600, letterSpacing: -2.6, ...rise(f, at, 9)}}>{text}</div>
+            background: S.surface, border: `1px solid ${S.line}`, borderLeft: `8px solid ${[S.event, S.yellow, S.green][i]}`, borderRadius: 12,
+            padding: '0 36px', display: 'flex', alignItems: 'center', fontFamily: display, fontSize: 80, fontWeight: 700, letterSpacing: -3, ...rise(f, at, 9)}}>{text}</div>
         </React.Fragment>
       ))}
       <Say line="values" />
@@ -212,9 +221,10 @@ const Start = () => {
   const facts = [['No token', 6], ['No server', 28], ['Free and open source', 53]];
   return (
     <AbsoluteFill style={{...page, alignItems: 'center', justifyContent: 'center'}}>
-      <div style={{display: 'flex', alignItems: 'center', gap: 28, ...rise(f, 0, 8)}}>
-        <Mark size={104} />
-        <div style={{fontSize: 128, fontWeight: 600, letterSpacing: -5.5}}>Slotwise</div>
+      <Backdrop />
+      <div style={{display: 'flex', alignItems: 'center', gap: 28}}>
+        <div style={{transform: `scale(${pop(f, 0, {damping: 10})})`}}><Mark size={104} /></div>
+        <div style={{fontFamily: display, fontSize: 136, fontWeight: 800, letterSpacing: -6, ...rise(f, 3, 8)}}>Slotwise</div>
       </div>
       <div style={{display: 'flex', gap: 40, marginTop: 44, fontSize: 38, color: S.secondary}}>
         {facts.map(([text, at], i) => (

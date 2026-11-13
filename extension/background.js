@@ -75,6 +75,9 @@ var handlers = {
     if (token) headsUpIfWanted();
     return { ok: !!token, message: token ? '' : 'Google Calendar was not connected.' };
   },
+  'jsc-google-disconnect': function () {
+    return disconnectGoogle();
+  },
   'jsc-plan': async function () {
     var result = await planSprint({});
     await chrome.storage.local.set({ jscPlanned: true }); // from now on the plan follows Jira

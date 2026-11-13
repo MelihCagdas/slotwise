@@ -1,5 +1,6 @@
 import React from 'react';
-import {AbsoluteFill, OffthreadVideo, staticFile, useCurrentFrame} from 'remotion';
+import {AbsoluteFill, OffthreadVideo, staticFile, useCurrentFrame, spring} from 'remotion';
+import {loadFont as loadDisplay} from '@remotion/google-fonts/BricolageGrotesque';
 import {loadFont as loadMono} from '@remotion/google-fonts/JetBrainsMono';
 import {C, fontFamily, appear} from './theme';
 
@@ -8,6 +9,39 @@ export const sec = (s) => Math.round(s * FPS);
 
 // One family for everything, plus a mono for times and small labels.
 export const mono = loadMono().fontFamily;
+// A display face with some character, for headlines and the lines that flash up.
+export const display = loadDisplay('normal', {weights: ['600', '700', '800'], subsets: ['latin']}).fontFamily;
+
+/** 0 to 1 with a little overshoot, starting at frame `at`: how things land, rather than slide. */
+export const pop = (f, at, config) => spring({frame: f - at, fps: 30, config: {damping: 13, stiffness: 150, mass: 0.7, ...config}});
+
+/** Text that arrives a word at a time, each word rising into focus. `mark` picks words to colour. */
+export const Words = ({text, at = 0, step = 3, mark}) => {
+  const f = useCurrentFrame();
+  return (
+    <>
+      {text.split(' ').map((word, i) => {
+        const start = at + i * step;
+        const o = appear(f, start, 7);
+        const s = pop(f, start);
+        return (
+          <span key={i} style={{display: 'inline-block', whiteSpace: 'pre', opacity: o, transform: `translateY(${(1 - s) * 0.45}em)`,
+            filter: `blur(${(1 - o) * 7}px)`, color: mark && mark(word, i) ? mark(word, i) : undefined}}>{word + ' '}</span>
+        );
+      })}
+    </>
+  );
+};
+
+/** A faint calendar grid that drifts behind the text scenes, clear in the middle. */
+export const Backdrop = () => {
+  const f = useCurrentFrame();
+  const fade = 'radial-gradient(ellipse 60% 55% at center, transparent 35%, black 100%)';
+  return (
+    <AbsoluteFill style={{backgroundImage: `linear-gradient(${S.line} 1px, transparent 1px), linear-gradient(90deg, ${S.line} 1px, transparent 1px)`,
+      backgroundSize: '192px 108px', backgroundPosition: `${-f * 0.35}px ${-f * 0.18}px`, opacity: 0.55, maskImage: fade, WebkitMaskImage: fade}} />
+  );
+};
 
 // The two products it joins set the palette: Jira's blue for the brand,
 // Google Calendar's page grey, event blue, yellow and green, and the red
@@ -73,7 +107,14 @@ export const Tag = ({children, left = 276, top = 60}) => (
 /** Fades a scene in and out. */
 export const Fade = ({length, last, children}) => {
   const f = useCurrentFrame();
-  return <AbsoluteFill style={{opacity: Math.min(appear(f, 0, 6), last ? 1 : 1 - appear(f, length - 6, 6))}}>{children}</AbsoluteFill>;
+  const enter = appear(f, 0, 9);
+  const leave = last ? 0 : appear(f, length - 7, 7);
+  // A scene eases up into place and lifts away, so the cut between two scenes has some travel in it.
+  return (
+    <AbsoluteFill style={{opacity: Math.min(enter, 1 - leave), transform: `translateY(${(1 - enter) * 26 - leave * 18}px) scale(${0.985 + 0.015 * enter})`}}>
+      {children}
+    </AbsoluteFill>
+  );
 };
 
 /**
@@ -81,13 +122,19 @@ export const Fade = ({length, last, children}) => {
  * event-blue edge, and the slot's time beside it when one is given.
  * `a` runs 0 to 1 as it arrives; `out` runs 0 to 1 as it leaves.
  */
-export const EventCard = ({text, time, a = 1, out = 0, size = 46}) => (
-  <div style={{display: 'flex', alignItems: 'center', gap: 22, opacity: a * (1 - out),
-    transform: `translateY(${(1 - a) * 16 - out * 18}px)`}}>
-    {time ? <span style={{fontFamily: mono, fontSize: 24, color: S.muted, width: 78, textAlign: 'right'}}>{time}</span> : null}
-    <div style={{background: S.surface, border: `1px solid ${S.line}`, borderLeft: `7px solid ${S.event}`, borderRadius: 12,
-      padding: '15px 30px 15px 24px', fontSize: size, fontWeight: 600, letterSpacing: -1.3, lineHeight: 1.1, color: S.ink,
-      boxShadow: shadow, whiteSpace: 'nowrap'}}>{text}</div>
-    {time ? <span style={{width: 78}} /> : null}
-  </div>
-);
+export const EventCard = ({text, time, a = 1, out = 0, size = 46, land}) => {
+  const s = land === undefined ? a : land; // `land` carries the overshoot when the caller has one
+  return (
+    <div style={{display: 'flex', alignItems: 'center', gap: 22, opacity: a * (1 - out),
+      transform: `translateY(${(1 - s) * 26 - out * 20}px) scale(${0.93 + 0.07 * s})`, filter: `blur(${(1 - a) * 6}px)`}}>
+      {time ? <span style={{fontFamily: mono, fontSize: 24, color: S.muted, width: 78, textAlign: 'right'}}>{time}</span> : null}
+      <div style={{position: 'relative', background: S.surface, border: `1px solid ${S.line}`, borderRadius: 14, overflow: 'hidden',
+        padding: '15px 32px 16px 34px', fontFamily: display, fontSize: size * 1.06, fontWeight: 700, letterSpacing: -1.2, lineHeight: 1.1, color: S.ink,
+        boxShadow: '0 2px 4px rgba(9,30,66,.08), 0 16px 36px rgba(9,30,66,.12)', whiteSpace: 'nowrap'}}>
+        <span style={{position: 'absolute', left: 0, top: 0, bottom: 0, width: 9, background: S.event, transform: `scaleY(${s})`, transformOrigin: 'center'}} />
+        {text}
+      </div>
+      {time ? <span style={{width: 78}} /> : null}
+    </div>
+  );
+};

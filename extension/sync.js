@@ -354,6 +354,8 @@ var lastGoogle = null; // the last Google Calendar call that failed
 /** A Google sign-in token, or null. `interactive` may show Google's "Allow" window. */
 async function googleToken(interactive) {
   if (!isRegistered()) return null;
+  // Disconnected by the person: stay that way until they press Connect again.
+  if (!interactive && (await chrome.storage.local.get('jscGoogleOff')).jscGoogleOff) return null;
   try {
     var result = await chrome.identity.getAuthToken({ interactive: !!interactive });
     var token = typeof result === 'string' ? result : (result && result.token) || null;
@@ -361,6 +363,7 @@ async function googleToken(interactive) {
       lastAuth = { ok: true, at: Date.now(), interactive: !!interactive, scopes: (result && result.grantedScopes) || null };
       // Kept so that a short refusal from Chrome does not look like "not connected".
       await chrome.storage.local.set({ jscToken: { token: token, until: Date.now() + 50 * 60000 } });
+      if (interactive) await chrome.storage.local.remove('jscGoogleOff');
       return token;
     }
     lastAuth = { ok: false, at: Date.now(), interactive: !!interactive, why: 'no token returned' };
@@ -545,4 +548,15 @@ async function sendHeadsUps() {
   Object.keys(done).forEach(function (id) { if (Date.now() - done[id] > 30 * 86400000) delete done[id]; });
   await chrome.storage.local.set({ jscHeadsUpDone: done, jscHeadsUpLog: log.slice(0, 5) });
   return { ok: true, sent: clashes.length, last: log[0] || null };
+}
+
+/** Stops using Google Calendar directly. Nothing already on the calendar is removed. */
+async function disconnectGoogle() {
+  var token = await googleToken(false);
+  await chrome.storage.local.set({ jscGoogleOff: true });
+  await chrome.storage.local.remove('jscToken');
+  if (token) {
+    try { await chrome.identity.removeCachedAuthToken({ token: token }); } catch (e) { /* already gone */ }
+  }
+  return { ok: true };
 }

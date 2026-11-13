@@ -653,7 +653,7 @@
     ui.heads.checked = state.google.headsUp;
     var lastNote = state.google.lastHeadsUp;
     ui.headsLast.hidden = !state.google.connected || !state.google.headsUp || !lastNote;
-    if (lastNote) ui.headsLast.textContent = 'Last heads-up: ' + lastNote.to + ', about ' + lastNote.meeting + '.';
+    if (lastNote) ui.headsLast.textContent = 'Heads-up sent about ' + lastNote.meeting + '.';
     ui.saveRow.hidden = state.google.connected; // drops are instant once connected
     ui.auto.checked = state.autoSave;
     ui.forget.hidden = state.google.connected || !Object.keys(state.placed).length;
@@ -751,6 +751,13 @@
     ui.autoBox.appendChild(el('div', 'jsc-label', 'Done for you'));
     ui.autoBox.appendChild(ui.autoRow);
     ui.autoBox.appendChild(ui.headsRow);
+    ui.autoBox.appendChild(button('jsc-text-button jsc-disconnect', 'Disconnect Google Calendar', function () {
+      send({ type: 'jsc-google-disconnect' }).then(function () {
+        state.google.connected = false;
+        setNote('Disconnected. Your events stay; Slotwise no longer changes your Google Calendar by itself.');
+        render();
+      });
+    }));
     box.appendChild(ui.autoBox);
     box.appendChild(button('jsc-button jsc-quiet', 'Done', function () { state.customising = false; render(); }));
     return box;

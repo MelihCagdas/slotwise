@@ -70,7 +70,7 @@ The panel works without this. Connecting adds three things, with nothing to swit
 - **A plan that follows Jira.** After you press **Plan tasks** once, the plan is kept up to date while Chrome is running.
 - **Heads-ups.** Every two minutes, and whenever you open Calendar, Slotwise looks at the invitations you have not answered in the next two weeks. One that overlaps a ticket placed on an hour is answered "Maybe" with the note, once. All-day plan bars never count as a clash.
 
-Press **Connect Google Calendar** at the bottom of the panel and choose **Allow**. Each of the two automatic features has an off switch in **Customise**, under "Done for you".
+Press **Connect Google Calendar** at the bottom of the panel and choose **Allow**. Each of the two automatic features has an off switch in **Customise**, under "Done for you". **Disconnect Google Calendar** is there too: your events stay, and Slotwise stops changing your calendar by itself.
 
 Two limits to know:
 
