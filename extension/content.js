@@ -117,7 +117,12 @@
     }
 
     if (p.stage === 'opening') {
-      if (now - p.at > 15000) clearPending(); // the new-event page never opened
+      // The new-event page is not up yet. Google sometimes drops a page change
+      // made while it is busy with its own, so ask again a few times.
+      if (now - (p.lastTry || p.at) < 2500) return;
+      if ((p.tries || 0) >= 4) { clearPending(); render(); return; }
+      p.tries = (p.tries || 0) + 1; p.lastTry = now; writePending(p);
+      location.assign(editorUrl(p, item));
       return;
     }
     if (p.stage === 'editing') {
@@ -127,20 +132,21 @@
       return;
     }
     if (p.stage === 'leaving') {
-      if (now - p.leftAt < 900) return; // let Google finish its own move first
+      if (now - p.leftAt < 1500) return; // let Google finish its own move first
       if (!p.stopped && p.index + 1 < p.queue.length) {
         p.index++; p.stage = 'opening'; p.at = now; p.pressed = false; p.saved = false;
+        p.tries = 0; p.lastTry = now;
         writePending(p);
         location.assign(editorUrl(p, p.queue[p.index]));
         return;
       }
-      p.stage = 'returning'; p.tries = 0; writePending(p);
+      p.stage = 'returning'; p.tries = 0; p.lastTry = 0; writePending(p);
       return;
     }
     // Returning: Google shows today after a save. Go back to the view they were in.
     if (!p.returnTo || location.pathname === p.returnTo) { clearPending(); render(); return; }
     if (now - (p.lastTry || 0) < 1200) return;
-    if (p.tries >= 3) { clearPending(); return; }
+    if (p.tries >= 4) { clearPending(); render(); return; }
     p.tries++; p.lastTry = now; writePending(p);
     location.assign(p.returnTo);
   }
