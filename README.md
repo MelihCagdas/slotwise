@@ -32,6 +32,8 @@ The extension adds a **Jira tickets** panel to Google Calendar in your browser.
 - **Your tickets, in one list.** This sprint first, then your other open tickets.
 - **Search.** Type to filter your own tickets. Three letters or more also searches the rest of Jira, and a ticket number such as `APP-12` finds that ticket.
 - **Drag onto the calendar.** Drop on an hour in week or day view for a one-hour event at that time. Drop on the strip under the date, or on a day in month view, for an all-day event.
+- **Colours by status.** Grey for to do, blue for in progress, amber for in review or QA.
+- **Plan my sprint.** One button spreads the sprint tickets that are still in the panel across the remaining days of the sprint: work in progress first, then board order, sized by story points. Tickets you already placed are left alone and get a tick in the panel.
 - **It is a normal event.** The title is the ticket number and name, and the description links to the ticket. Move it, stretch it across hours or days, change its colour, invite people. It shows as busy, so anyone booking you sees the time is taken.
 - **No token.** It uses the Jira sign-in your browser already has.
 
@@ -49,7 +51,9 @@ Make sure you are signed in to Jira in the same browser.
 
 ### What happens on a drop
 
-The extension opens Google Calendar's own new-event page with the ticket filled in, saves it, and returns you to the week you were looking at. This takes a few seconds. Untick **Save the event straight away** in the panel if you would rather check each event before it is saved.
+The extension opens Google Calendar's own new-event page with the ticket filled in, saves it, and returns you to the week you were looking at. This takes a few seconds. Untick **Save a dropped ticket straight away** in the panel if you would rather check each event before it is saved.
+
+**Plan my sprint** does the same for each ticket in turn, about ten seconds a ticket. Do not type in the Calendar tab while it runs: Google Calendar treats single keys as shortcuts and will interrupt it. Pressing the button again later places only tickets that are not on the calendar yet.
 
 The extension asks for two permissions: to run on `calendar.google.com`, and to read from `atlassian.net`. It only reads Jira. It sends nothing anywhere else.
 
@@ -137,8 +141,7 @@ The script runs inside your own Google account. Your Jira token is stored in you
 These are planned, not built:
 
 - **Chrome Web Store listing.** Install the extension in one click.
-- **Instant drops.** Create the event without opening Google's new-event page.
-- **Show what is already placed.** Mark tickets in the panel that are on the calendar.
+- **Instant drops and a plan that keeps itself up to date.** The code for a direct Google Calendar connection is in the extension but switched off until the extension is registered with Google.
 - **One-click automatic plan.** A Google Calendar add-on: install it, sign in to Jira, done. No token, no script.
 - **Team view.** See a teammate's plan next to your own.
 - **More calendars.** Outlook after Google.
