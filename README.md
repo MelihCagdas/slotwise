@@ -6,9 +6,9 @@
 
 Slotwise puts your Jira tickets on your Google Calendar, so the work you planned is as visible as your meetings.
 
-[![Watch the 57-second video](docs/video-poster.png)](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-sales.mp4)
+[![Watch the one-minute video](docs/video-poster.png)](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-sales.mp4)
 
-▶ [Watch the 57-second video](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-sales.mp4) · [See the real screen recording](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-screen-recording.mp4)
+▶ [Watch the one-minute video](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-sales.mp4) · [See the real screen recording](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-screen-recording.mp4)
 
 ## The problem
 

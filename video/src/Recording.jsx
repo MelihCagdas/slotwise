@@ -1,7 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Sequence, Audio, staticFile, useCurrentFrame, interpolate} from 'remotion';
 import {C, appear} from './theme';
-import {page, sec, Clip, Tag, Fade, Mark, S} from './shared';
+import {page, sec, Clip, Tag, Fade, Mark, S, EventCard} from './shared';
 
 // The real screen recording, trimmed, with a line saying what is happening.
 // [clip, start in clip (s), length shown (s), playback speed, label, crop ratio]
@@ -26,8 +26,9 @@ export const RECORDING_FRAMES = sec(INTRO + PARTS.reduce((s, p) => s + p[2], 0) 
 const Label = ({text}) => {
   const f = useCurrentFrame();
   return (
-    <div style={{position: 'absolute', left: 0, right: 0, bottom: 40, textAlign: 'center', fontSize: 38, fontWeight: 500,
-      letterSpacing: -0.6, color: S.ink, opacity: appear(f, 2, 10), transform: `translateY(${(1 - appear(f, 2, 12)) * 12}px)`}}>{text}</div>
+    <div style={{position: 'absolute', left: 0, right: 0, bottom: 34, display: 'flex', justifyContent: 'center'}}>
+      <EventCard text={text} a={appear(f, 2, 11)} size={34} />
+    </div>
   );
 };
 
@@ -58,7 +59,7 @@ export const Recording = () => {
     <AbsoluteFill style={page}>
       {ratio && ratio > 1
         ? <Clip name={name} from={from} rate={rate} width={Math.round(860 / ratio)} ratio={ratio} top={46} />
-        : <Clip name={name} from={from} rate={rate} ratio={ratio || 876 / 1520} top={ratio ? 200 : 40} />}
+        : <Clip name={name} from={from} rate={rate} ratio={ratio || 836 / 1520} top={ratio ? 200 : 40} />}
       {tag ? <Tag left={ratio && ratio > 1 ? 1180 : 276} top={64}>{tag}</Tag> : null}
       <Label text={label} />
     </AbsoluteFill>

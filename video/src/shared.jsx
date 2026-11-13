@@ -48,15 +48,17 @@ export const Mark = ({size = 120}) => {
  * `from` is where in the clip to start (seconds), `rate` the playback speed,
  * `zoom`/`focus` an optional push-in towards a point (0..1 of the frame).
  */
-export const Clip = ({name, from = 0, rate = 1, width = 1400, ratio = 876 / 1520, top = 44, zoom = 1, focus = [0.5, 0.5], length = 90}) => {
+export const Clip = ({name, from = 0, rate = 1, width = 1400, ratio = 836 / 1520, top = 44, zoom = 1, focus = [0.5, 0.5], length = 90}) => {
   const f = useCurrentFrame();
-  const z = 1 + (zoom - 1) * Math.min(1, f / Math.max(1, length));
+  // The push-in eases in and out, so it never starts or stops with a jerk.
+  const t = Math.min(1, f / Math.max(1, length));
+  const z = 1 + (zoom - 1) * (t * t * (3 - 2 * t));
   const height = Math.round(width * ratio);
   return (
     <div style={{position: 'absolute', left: (1920 - width) / 2, top, width, height, borderRadius: 16, overflow: 'hidden',
       border: `1px solid ${S.line}`, boxShadow: shadow, background: S.surface}}>
       <OffthreadVideo src={staticFile(`rec/${name}.mp4`)} startFrom={sec(from)} playbackRate={rate} muted
-        style={{width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', transform: `scale(${z})`,
+        style={{width: '102.5%', height: '102.5%', objectFit: 'cover', objectPosition: 'top left', transform: `scale(${z})`,
           transformOrigin: `${focus[0] * 100}% ${focus[1] * 100}%`}} />
     </div>
   );
@@ -73,3 +75,19 @@ export const Fade = ({length, last, children}) => {
   const f = useCurrentFrame();
   return <AbsoluteFill style={{opacity: Math.min(appear(f, 0, 6), last ? 1 : 1 - appear(f, length - 6, 6))}}>{children}</AbsoluteFill>;
 };
+
+/**
+ * A line of text drawn the way a calendar draws an event: a card with the
+ * event-blue edge, and the slot's time beside it when one is given.
+ * `a` runs 0 to 1 as it arrives; `out` runs 0 to 1 as it leaves.
+ */
+export const EventCard = ({text, time, a = 1, out = 0, size = 46}) => (
+  <div style={{display: 'flex', alignItems: 'center', gap: 22, opacity: a * (1 - out),
+    transform: `translateY(${(1 - a) * 16 - out * 18}px)`}}>
+    {time ? <span style={{fontFamily: mono, fontSize: 24, color: S.muted, width: 78, textAlign: 'right'}}>{time}</span> : null}
+    <div style={{background: S.surface, border: `1px solid ${S.line}`, borderLeft: `7px solid ${S.event}`, borderRadius: 12,
+      padding: '15px 30px 15px 24px', fontSize: size, fontWeight: 600, letterSpacing: -1.3, lineHeight: 1.1, color: S.ink,
+      boxShadow: shadow, whiteSpace: 'nowrap'}}>{text}</div>
+    {time ? <span style={{width: 78}} /> : null}
+  </div>
+);
