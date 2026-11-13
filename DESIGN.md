@@ -82,6 +82,16 @@ No server, no app, no account with us, nothing to tune.
 
 Past days are left alone, so they stay as a record of what was planned.
 
+### Future sprints
+
+Tickets in a future sprint are drawn after the active sprint, in grey.
+Jira gives a sprint its dates only when it starts. Until then, a future
+sprint is assumed to start on the working day after the previous one ends
+and to last as many working days as the active sprint (10 when there is no
+active sprint). Sprints that already have planned dates use them. Bars for
+assumed dates say so in their description, and are redrawn with the real
+dates once the sprint starts. Nothing is drawn more than 120 days ahead.
+
 ### Rules
 
 - Working days are Monday to Friday by default. Days where an out-of-office

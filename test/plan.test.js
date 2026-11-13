@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert'); // loose mode: values come from another vm context
 const { load } = require('./load');
 
-const { DEFAULTS, orderTickets, weighTickets, workingDays, spreadTickets, buildPlan } = load();
+const { DEFAULTS, orderTickets, weighTickets, workingDays, spreadTickets, buildPlan, buildFullPlan } = load();
 
 const t = (key, status, category, points = null, estimateSeconds = null) =>
   ({ key, summary: key, status, category, points, estimateSeconds });
@@ -86,4 +86,48 @@ test('buildPlan: no sprint uses the next 10 working days', () => {
 test('buildPlan: sprint already over or only a weekend left lands on the next working day', () => {
   const p = buildPlan([t('A', 'In Progress', 'indeterminate')], '2026-11-14', '2026-11-14', { ...DEFAULTS, site: 's' }, []);
   assert.equal(p[0].startDate, '2026-11-16'); assert.equal(p[0].endDate, '2026-11-17');
+});
+
+const S = { ...DEFAULTS, site: 's' };
+const sprint = (id, name, tickets, extra) => ({ id, name, startDate: null, endDate: null, tickets, ...extra });
+
+test('buildFullPlan: future sprints follow the active one, each as long as the active sprint', () => {
+  const plan = buildFullPlan({
+    tickets: [t('A', 'In Progress', 'indeterminate', 1)],
+    sprintStart: '2026-11-02', sprintEnd: '2026-11-14',
+    future: [sprint(526, 'Sprint 73', [t('B', 'To Do', 'new', 1)]),
+      sprint(527, 'Sprint 74', [t('C', 'To Do', 'new', 1), t('D', 'To Do', 'new', 1)])],
+  }, '2026-11-13', S, []);
+  const by = Object.fromEntries(plan.map(x => [x.key, x]));
+  assert.equal(by.A.startDate, '2026-11-13'); assert.ok(!by.A.future);
+  // Sprint 72 had 10 working days, so Sprint 73 is 16-27 Nov and Sprint 74 is 30 Nov-11 Dec.
+  assert.equal(by.B.startDate, '2026-11-16'); assert.equal(by.B.endDate, '2026-11-28');
+  assert.equal(by.C.startDate, '2026-11-30'); assert.equal(by.C.endDate, '2026-12-05');
+  assert.equal(by.D.startDate, '2026-12-07'); assert.equal(by.D.endDate, '2026-12-12');
+  assert.equal(by.B.future, true);
+  assert.match(by.C.description, /Sprint 74/);
+  assert.match(by.C.description, /estimated/);
+});
+
+test('buildFullPlan: a future sprint with its own dates uses them and is not called estimated', () => {
+  const plan = buildFullPlan({
+    tickets: [], sprintStart: null, sprintEnd: null,
+    future: [sprint(530, 'Sprint 75', [t('E', 'To Do', 'new')], { startDate: '2026-12-14', endDate: '2026-12-18' })],
+  }, '2026-11-13', S, []);
+  assert.equal(plan[0].startDate, '2026-12-14'); assert.equal(plan[0].endDate, '2026-12-19');
+  assert.doesNotMatch(plan[0].description, /estimated/);
+});
+
+test('buildFullPlan: with no active sprint a future sprint starts on the next working day for 10 days', () => {
+  const plan = buildFullPlan({
+    tickets: [], sprintStart: null, sprintEnd: null,
+    future: [sprint(526, 'Sprint 73', [t('B', 'To Do', 'new')])],
+  }, '2026-11-14', S, []);
+  assert.equal(plan[0].startDate, '2026-11-16'); assert.equal(plan[0].endDate, '2026-11-28');
+});
+
+test('buildFullPlan: no future sprints gives the same plan as before', () => {
+  const jira = { tickets: [t('A', 'In Progress', 'indeterminate', 1)], sprintStart: null, sprintEnd: '2026-11-17', future: [] };
+  assert.deepEqual(buildFullPlan(jira, '2026-11-13', S, []).map(x => [x.key, x.startDate, x.endDate]),
+    buildPlan(jira.tickets, '2026-11-13', '2026-11-17', S, []).map(x => [x.key, x.startDate, x.endDate]));
 });

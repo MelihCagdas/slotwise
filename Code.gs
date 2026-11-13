@@ -8,6 +8,7 @@
  */
 
 var CALENDAR_NAME = 'Jira plan';
+var PLAN_HORIZON_DAYS = 120; // how far ahead bars are drawn and redrawn
 
 var DEFAULTS = {
   workingDays: [1, 2, 3, 4, 5], // 0 = Sunday ... 6 = Saturday
@@ -132,21 +133,10 @@ function formatPoints_(points) {
   return String(Math.round(points * 100) / 100);
 }
 
-/**
- * Turns Jira tickets into calendar entries.
- * `sprintEnd` is the last day of the sprint, or null when there is no sprint.
- * Returns [{key, title, description, url, startDate, endDate, group}].
- */
-function buildPlan(tickets, today, sprintEnd, settings, skipDates) {
+/** Places tickets on the given working days. `note` is added to each description. */
+function planOnDays_(tickets, days, settings, note, isFuture) {
   var ordered = weighTickets(orderTickets(tickets, settings));
-  if (!ordered.length) return [];
-
-  var days = sprintEnd
-    ? workingDays(today, sprintEnd, settings, skipDates)
-    : nextWorkingDays(today, settings.fallbackDays, settings, skipDates);
-  if (!days.length) days = nextWorkingDays(today, 1, settings, skipDates);
-  if (!days.length) return [];
-
+  if (!ordered.length || !days.length) return [];
   return spreadTickets(ordered, days.length).map(function (slot) {
     var t = slot.ticket;
     var url = settings.site + '/browse/' + t.key;
@@ -155,13 +145,58 @@ function buildPlan(tickets, today, sprintEnd, settings, skipDates) {
     return {
       key: t.key,
       title: title,
-      description: t.status + ' · ' + url,
+      description: t.status + ' · ' + url + (note ? '\n' + note : ''),
       url: url,
       startDate: days[slot.start],
       endDate: addDays_(days[slot.end - 1], 1),
-      group: t.group
+      group: t.group,
+      future: !!isFuture
     };
   });
+}
+
+/**
+ * Turns the active sprint's tickets into calendar entries.
+ * `sprintEnd` is the last day of the sprint, or null when there is no sprint.
+ * Returns [{key, title, description, url, startDate, endDate, group, future}].
+ */
+function buildPlan(tickets, today, sprintEnd, settings, skipDates) {
+  var days = sprintEnd
+    ? workingDays(today, sprintEnd, settings, skipDates)
+    : nextWorkingDays(today, settings.fallbackDays, settings, skipDates);
+  if (!days.length) days = nextWorkingDays(today, 1, settings, skipDates);
+  return planOnDays_(tickets, days, settings, '', false);
+}
+
+/**
+ * The whole plan: the active sprint, then each future sprint after it.
+ * Jira gives a sprint its dates only when it starts, so a future sprint
+ * without dates is assumed to follow straight on and to last as many
+ * working days as the active one. It corrects itself once the sprint starts.
+ * `jira` is {tickets, sprintStart, sprintEnd, future: [{id, name, startDate, endDate, tickets}]}.
+ */
+function buildFullPlan(jira, today, settings, skipDates) {
+  var plan = buildPlan(jira.tickets, today, jira.sprintEnd, settings, skipDates);
+
+  var length = settings.fallbackDays;
+  if (jira.sprintStart && jira.sprintEnd) {
+    length = workingDays(jira.sprintStart, jira.sprintEnd, settings, []).length || length;
+  }
+  var yesterday = addDays_(today, -1);
+  var after = jira.sprintEnd && jira.sprintEnd > yesterday ? jira.sprintEnd : yesterday;
+  var horizon = addDays_(today, PLAN_HORIZON_DAYS);
+
+  (jira.future || []).forEach(function (sprint) {
+    var hasDates = sprint.startDate && sprint.endDate && sprint.endDate >= today;
+    var days = hasDates
+      ? workingDays(sprint.startDate > today ? sprint.startDate : today, sprint.endDate, settings, skipDates)
+      : nextWorkingDays(addDays_(after, 1), length, settings, skipDates);
+    if (!days.length || days[0] > horizon) return;
+    after = days[days.length - 1];
+    var note = 'Planned for ' + sprint.name + (hasDates ? '.' : ' (dates estimated until the sprint starts).');
+    plan = plan.concat(planOnDays_(sprint.tickets, days, settings, note, true));
+  });
+  return plan;
 }
 
 // ---------------------------------------------------------------------------
@@ -193,6 +228,10 @@ function pickFieldIds(fields) {
 function parseIssues(issues, fieldIds, pointsOverride, toLocalDate) {
   var pointFields = pointsOverride ? [pointsOverride] : fieldIds.points;
   var sprintEnd = null;
+  var sprintStart = null;
+  var localDate = function (iso) {
+    return toLocalDate ? toLocalDate(iso) : String(iso).slice(0, 10);
+  };
   var tickets = (issues || []).map(function (issue) {
     var f = issue.fields || {};
     var points = null;
@@ -202,8 +241,11 @@ function parseIssues(issues, fieldIds, pointsOverride, toLocalDate) {
     var sprints = fieldIds.sprint && Array.isArray(f[fieldIds.sprint]) ? f[fieldIds.sprint] : [];
     sprints.forEach(function (s) {
       if (s && s.state === 'active' && s.endDate) {
-        var end = toLocalDate ? toLocalDate(s.endDate) : String(s.endDate).slice(0, 10);
-        if (!sprintEnd || end > sprintEnd) sprintEnd = end;
+        var end = localDate(s.endDate);
+        if (!sprintEnd || end > sprintEnd) {
+          sprintEnd = end;
+          sprintStart = s.startDate ? localDate(s.startDate) : null;
+        }
       }
     });
     var status = f.status || {};
@@ -216,7 +258,47 @@ function parseIssues(issues, fieldIds, pointsOverride, toLocalDate) {
       estimateSeconds: typeof f.timeoriginalestimate === 'number' ? f.timeoriginalestimate : null
     };
   });
-  return { tickets: tickets, sprintEnd: sprintEnd };
+  return { tickets: tickets, sprintStart: sprintStart, sprintEnd: sprintEnd };
+}
+
+/**
+ * Groups tickets by the future sprint they sit in, in sprint order.
+ * Returns [{id, name, startDate, endDate, tickets}]; dates are null unless
+ * the team has already given the sprint planned dates.
+ */
+function parseFutureIssues(issues, fieldIds, pointsOverride, toLocalDate) {
+  var localDate = function (iso) {
+    return toLocalDate ? toLocalDate(iso) : String(iso).slice(0, 10);
+  };
+  var byId = {};
+  (issues || []).forEach(function (issue) {
+    var entries = (issue.fields && issue.fields[fieldIds.sprint]) || [];
+    var sprint = null;
+    entries.forEach(function (s) { if (s && s.state === 'future') sprint = s; });
+    if (!sprint) return;
+    if (!byId[sprint.id]) {
+      byId[sprint.id] = {
+        id: sprint.id,
+        name: sprint.name || 'the next sprint',
+        startDate: sprint.startDate ? localDate(sprint.startDate) : null,
+        endDate: sprint.endDate ? localDate(sprint.endDate) : null,
+        issues: []
+      };
+    }
+    byId[sprint.id].issues.push(issue);
+  });
+  return Object.keys(byId)
+    .map(function (id) { return byId[id]; })
+    .sort(function (a, b) {
+      if (a.startDate && b.startDate && a.startDate !== b.startDate) return a.startDate < b.startDate ? -1 : 1;
+      return a.id - b.id;
+    })
+    .map(function (g) {
+      return {
+        id: g.id, name: g.name, startDate: g.startDate, endDate: g.endDate,
+        tickets: parseIssues(g.issues, fieldIds, pointsOverride, toLocalDate).tickets
+      };
+    });
 }
 
 /** Reads every page. `fetchPage(token)` returns {issues, nextPageToken}. */
@@ -246,6 +328,7 @@ function assertOk(code, body, what) {
 
 var SPRINT_JQL = 'assignee = currentUser() AND sprint in openSprints()';
 var OPEN_JQL = 'assignee = currentUser() AND statusCategory != Done';
+var FUTURE_JQL = 'assignee = currentUser() AND sprint in futureSprints() AND statusCategory != Done';
 
 /**
  * Runs one search and reads every page. `get(path, what, allowCodes)` returns
@@ -281,28 +364,39 @@ function fetchTicketsWith(get, settings, toLocalDate) {
   if (settings.pointsField) fields.push(settings.pointsField);
   if (fieldIds.sprint) fields.push(fieldIds.sprint);
 
+  var future = [];
   if (fieldIds.sprint) {
     // A 400 here means this site cannot answer sprint questions at all.
+    var upcoming = searchIssues(get, FUTURE_JQL + ' ORDER BY Rank ASC', fields, null, [400]);
+    future = parseFutureIssues(upcoming || [], fieldIds, settings.pointsField, toLocalDate);
+
     var issues = searchIssues(get, SPRINT_JQL + ' AND statusCategory != Done ORDER BY Rank ASC',
       fields, null, [400]);
     if (issues && issues.length) {
-      return parseIssues(issues, fieldIds, settings.pointsField, toLocalDate);
+      var active = parseIssues(issues, fieldIds, settings.pointsField, toLocalDate);
+      active.future = future;
+      return active;
     }
     if (issues) {
       // Nothing open. If the sprint still holds finished work of theirs,
       // they are simply done: show nothing rather than pull in the backlog.
       var any = searchIssues(get, SPRINT_JQL, ['summary', fieldIds.sprint], 1, [400]);
       if (any && any.length) {
-        return { tickets: [], sprintEnd: parseIssues(any, fieldIds, null, toLocalDate).sprintEnd };
+        var done = parseIssues(any, fieldIds, null, toLocalDate);
+        return { tickets: [], sprintStart: done.sprintStart, sprintEnd: done.sprintEnd, future: future };
       }
     }
+    // Between sprints: the next sprint's tickets are the plan.
+    if (future.length) return { tickets: [], sprintStart: null, sprintEnd: null, future: future };
   }
 
-  // No open sprint (for example a Kanban board): take the first open tickets.
+  // No sprints at all (for example a Kanban board): take the first open tickets.
   var open = searchIssues(get, OPEN_JQL + ' ORDER BY Rank ASC', fields, settings.fallbackTickets);
   return {
     tickets: parseIssues(open, fieldIds, settings.pointsField, toLocalDate).tickets,
-    sprintEnd: null
+    sprintStart: null,
+    sprintEnd: null,
+    future: []
   };
 }
 
@@ -441,7 +535,7 @@ function writePlan_(calendar, plan, today) {
   // and the calendar can never push an all-day bar onto the wrong day.
   var todayNoon = localDate_(today, 12);
 
-  calendar.getEvents(localDate_(today), localDate_(addDays_(today, 120))).forEach(function (event) {
+  calendar.getEvents(localDate_(today), localDate_(addDays_(today, PLAN_HORIZON_DAYS + 60))).forEach(function (event) {
     if (!event.isAllDayEvent() || event.getTag(EVENT_TAG) !== '1') return;
     var startDay = Utilities.formatDate(event.getAllDayStartDate(), zone, 'yyyy-MM-dd');
     if (startDay >= today) {
@@ -458,7 +552,8 @@ function writePlan_(calendar, plan, today) {
       { description: item.description });
     event.setTag(EVENT_TAG, '1');
     event.removeAllReminders();
-    event.setColor(item.group === 1 ? CalendarApp.EventColor.GREEN : CalendarApp.EventColor.PALE_GREEN);
+    event.setColor(item.future ? CalendarApp.EventColor.GRAY
+      : item.group === 1 ? CalendarApp.EventColor.GREEN : CalendarApp.EventColor.PALE_GREEN);
     try {
       event.setTransparency(CalendarApp.EventTransparency.TRANSPARENT);
     } catch (err) {
@@ -478,13 +573,14 @@ function sync() {
     // Everything is read and planned first. The calendar is only touched
     // once that has worked, so a Jira problem never leaves it half-drawn.
     var jira = fetchTickets_(settings);
-    var horizon = jira.sprintEnd && jira.sprintEnd >= today ? jira.sprintEnd : addDays_(today, 30);
-    var skipDates = outOfOfficeDates_(today, horizon);
-    var plan = buildPlan(jira.tickets, today, jira.sprintEnd, settings, skipDates);
+    var skipDates = outOfOfficeDates_(today, addDays_(today, PLAN_HORIZON_DAYS));
+    var plan = buildFullPlan(jira, today, settings, skipDates);
 
     writePlan_(getPlanCalendar_(true), plan, today);
-    console.log('Planned ' + plan.length + ' tickets' +
-      (jira.sprintEnd ? ' up to ' + jira.sprintEnd : ' (no open sprint found)') + '.');
+    var upcoming = plan.filter(function (item) { return item.future; }).length;
+    console.log('Planned ' + (plan.length - upcoming) + ' tickets' +
+      (jira.sprintEnd ? ' in the sprint ending ' + jira.sprintEnd : ' (no open sprint found)') +
+      ' and ' + upcoming + ' in future sprints.');
   } catch (err) {
     console.error('Jira Sprint Calendar did not update: ' + err.message);
     throw err;

@@ -20,6 +20,7 @@ Every morning it:
 2. Puts the work you have in progress first, then the rest in board order.
 3. Gives each ticket a share of the remaining sprint days, based on its story points.
 4. Draws each ticket as an all-day bar in a separate calendar called **Jira plan**.
+5. Does the same for tickets in your coming sprints, in grey, in the weeks after.
 
 The bars are marked "free", so they never block your time or show you as busy. Each bar links back to its ticket.
 
@@ -51,11 +52,12 @@ To refresh at any time, run `sync`.
 - **Size.** Story points, when your tickets have them. If none do, the original time estimate. If there is neither, every ticket counts the same. A ticket with no size gets the average of the others.
 - **Spread.** Each ticket gets a share of the remaining working days equal to its share of the total size, rounded to whole days. A large ticket spans several days. Small tickets share a day. Everything always fits inside the sprint.
 - **Days.** Monday to Friday. Days where you have an out-of-office event covering 09:00 to 17:00 are skipped.
-- **No sprint.** If you have no open sprint, for example on a Kanban board, it takes your first 20 open tickets and spreads them over the next 10 working days.
+- **Future sprints.** Tickets already placed in a coming sprint are drawn too, in grey, after the current sprint. Jira only gives a sprint its dates when it starts, so until then the script assumes each coming sprint follows straight on and lasts as many working days as the current one. The bar's description says "dates estimated". It corrects itself once the sprint starts.
+- **No sprint.** If you have no open or coming sprint, for example on a Kanban board, it takes your first 20 open tickets and spreads them over the next 10 working days.
 
 Because the spread is proportional, there is no "hours per point" setting. It works the same whether your team treats a point as an hour or as a day.
 
-Each morning it redraws from today forward. Earlier days are left as they were, so you keep a record of what was planned. It only ever changes bars it created itself.
+When you finish a ticket, its bar goes away at the next refresh and the remaining tickets spread out to fill the days. Each morning it redraws from today forward. Earlier days are left as they were, so you keep a record of what was planned. It only ever changes bars it created itself.
 
 ## Optional settings
 

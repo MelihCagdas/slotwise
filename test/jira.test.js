@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert'); // loose mode: values come from another vm context
 const { load } = require('./load');
 
-const { DEFAULTS, pickFieldIds, parseIssues, collectPages, assertOk, fetchTicketsWith, checkSettings } = load();
+const { DEFAULTS, pickFieldIds, parseIssues, parseFutureIssues, collectPages, assertOk, fetchTicketsWith, checkSettings } = load();
 
 test('pickFieldIds finds sprint and both points fields', () => {
   const ids = pickFieldIds([
@@ -96,6 +96,7 @@ function fakeJira(routes) {
         return value;
       }
     }
+    if (decoded.includes('futureSprints')) return { issues: [] };
     throw new Error('unexpected call: ' + decoded);
   };
   return { get, calls };
@@ -170,4 +171,48 @@ test('checkSettings rejects working days and run hours that are not numbers in r
   assert.throws(() => checkSettings({ workingDays: [], runHour: 7 }), /WORKING_DAYS/);
   assert.throws(() => checkSettings({ workingDays: [1], runHour: NaN }), /RUN_HOUR/);
   assert.throws(() => checkSettings({ workingDays: [1], runHour: 24 }), /RUN_HOUR/);
+});
+
+const future = (id, name, extra) => ({ id, name, state: 'future', ...extra });
+
+test('parseFutureIssues groups tickets by future sprint, in sprint order, keeping any planned dates', () => {
+  const groups = parseFutureIssues([
+    issue('C', { customfield_10020: [future(527, 'Sprint 74')] }),
+    issue('A', { customfield_10028: 2, customfield_10020: [{ id: 400, state: 'closed' }, future(526, 'Sprint 73')] }),
+    issue('B', { customfield_10020: [future(526, 'Sprint 73')] }),
+    issue('D', { customfield_10020: [future(530, 'Sprint 75',
+      { startDate: '2026-12-14T07:00:00.000Z', endDate: '2026-12-25T07:00:00.000Z' })] }),
+  ], ids, null);
+  assert.deepEqual(groups.map(g => g.name), ['Sprint 73', 'Sprint 74', 'Sprint 75']);
+  assert.deepEqual(groups[0].tickets.map(x => x.key), ['A', 'B']);
+  assert.equal(groups[0].tickets[0].points, 2);
+  assert.equal(groups[0].startDate, null);
+  assert.equal(groups[2].startDate, '2026-12-14');
+  assert.equal(groups[2].endDate, '2026-12-25');
+});
+
+test('fetchTicketsWith: returns the active sprint dates and the future sprints', () => {
+  const active = issue('A', { customfield_10020: [
+    { state: 'active', startDate: '2026-11-02T07:41:00.000Z', endDate: '2026-11-14T05:00:00.000Z' }] });
+  const jira = fakeJira([
+    ['/myself', {}], ['/field', FIELDS],
+    ['futureSprints', { issues: [issue('F', { customfield_10020: [future(527, 'Sprint 74')] })] }],
+    ['statusCategory != Done', { issues: [active] }],
+  ]);
+  const out = fetchTicketsWith(jira.get, settings);
+  assert.equal(out.sprintStart, '2026-11-02');
+  assert.equal(out.sprintEnd, '2026-11-14');
+  assert.equal(out.future.length, 1);
+  assert.equal(out.future[0].tickets[0].key, 'F');
+});
+
+test('fetchTicketsWith: no open sprint but future sprint tickets means no backlog fallback', () => {
+  const jira = fakeJira([
+    ['/myself', {}], ['/field', FIELDS],
+    ['futureSprints', { issues: [issue('F', { customfield_10020: [future(527, 'Sprint 74')] })] }],
+    ['sprint in openSprints()', { issues: [] }],
+  ]);
+  const out = fetchTicketsWith(jira.get, settings);
+  assert.deepEqual(out.tickets, []);
+  assert.equal(out.future.length, 1);
 });
