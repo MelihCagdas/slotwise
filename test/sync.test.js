@@ -10,7 +10,8 @@ const ctx = { console };
 for (const f of ['plan.js', 'lib.js', 'sync.js']) {
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'extension', f), 'utf8'), ctx, { filename: f });
 }
-const { JSC, diffPlan, allDayEventBody, timedEventBody, planFingerprint, withoutTickets, localDate } = ctx;
+const { JSC, diffPlan, allDayEventBody, timedEventBody, planFingerprint, withoutTickets, localDate, demoResponse,
+  pickFieldIds, parseIssues, parseFutureIssues, buildFullPlan, DEFAULTS } = ctx;
 
 test('extension/plan.js is an exact copy of the planning code in Code.gs', () => {
   assert.equal(fs.readFileSync(path.join(__dirname, '..', 'extension', 'plan.js'), 'utf8'), planSource(),
@@ -129,4 +130,38 @@ test('planFingerprint changes when a ticket moves, and not when nothing did', ()
 test('localDate gives the calendar date in local time', () => {
   assert.equal(localDate(new Date(2026, 10, 16, 23, 59)), '2026-11-16');
   assert.equal(localDate(new Date(2027, 0, 3, 0, 1)), '2027-01-03');
+});
+
+test('the sample tickets answer like Jira and plan across the sample sprint', () => {
+  const now = new Date(2026, 10, 13, 12); // Friday 13 November 2026
+  const q = (jql) => demoResponse('/rest/api/3/search/jql?maxResults=100&fields=summary&jql=' + encodeURIComponent(jql), now).data.issues;
+  assert.equal(demoResponse('/rest/api/3/myself', now).ok, true);
+  const ids = pickFieldIds(demoResponse('/rest/api/3/field', now).data);
+  assert.equal(ids.sprint, 'customfield_10020');
+
+  const sprint = q('assignee = currentUser() AND sprint in openSprints() AND statusCategory != Done ORDER BY Rank ASC');
+  assert.deepEqual(sprint.map(i => i.key), ['APP-212', 'APP-198', 'APP-205', 'APP-220', 'APP-231', 'APP-240']);
+  assert.equal(q('assignee = currentUser() AND sprint in futureSprints() AND statusCategory != Done').length, 2);
+  assert.ok(q('assignee = currentUser() AND statusCategory != Done AND (sprint is EMPTY OR sprint not in openSprints())').length >= 2);
+  assert.deepEqual(q('summary ~ "export*" AND statusCategory != Done ORDER BY updated DESC').map(i => i.key).sort(), ['APP-198', 'APP-252']);
+  assert.deepEqual(q('key = "APP-220"').map(i => i.key), ['APP-220']);
+
+  const toLocal = iso => localDate(new Date(iso));
+  const active = parseIssues(sprint, ids, null, toLocal);
+  assert.equal(active.sprintStart, '2026-11-09');
+  assert.equal(active.sprintEnd, '2026-11-20');
+  active.future = parseFutureIssues(q('sprint in futureSprints()'), ids, null, toLocal);
+  const plan = buildFullPlan(active, '2026-11-13', { ...DEFAULTS, site: JSC.linkBase('demo') }, []);
+  assert.equal(plan.filter(p => !p.future).length, 6);
+  assert.equal(plan[0].key, 'APP-212');              // in progress first
+  assert.equal(plan[0].startDate, '2026-11-13');
+  assert.ok(plan.filter(p => !p.future).every(p => p.endDate <= '2026-11-21'));
+  assert.equal(plan.filter(p => p.future).length, 2);
+  assert.match(plan[0].url, /^https:\/\/example\.atlassian\.net\/browse\/APP-212$/);
+});
+
+test('normalizeSite accepts "demo" for the sample tickets', () => {
+  assert.equal(JSC.normalizeSite(' Demo '), 'demo');
+  assert.equal(JSC.linkBase('demo'), 'https://example.atlassian.net');
+  assert.equal(JSC.linkBase('https://x.atlassian.net'), 'https://x.atlassian.net');
 });

@@ -73,10 +73,18 @@ var JSC = (function () {
     return '/calendar/u/' + (m ? m[1] : '0');
   }
 
-  /** Returns 'https://name.atlassian.net', or null if it is not a Jira Cloud address. */
+  var DEMO_SITE = 'demo';
+
+  /** Where ticket links point: the Jira site, or a placeholder for the sample tickets. */
+  function linkBase(site) {
+    return site === DEMO_SITE ? 'https://example.atlassian.net' : site;
+  }
+
+  /** Returns 'https://name.atlassian.net', 'demo', or null if it is neither. */
   function normalizeSite(input) {
     var text = String(input || '').trim().toLowerCase();
     if (!text) return null;
+    if (text === DEMO_SITE) return DEMO_SITE; // sample tickets, no Jira needed
     text = text.replace(/^https?:\/\//, '').split(/[/?#]/)[0];
     return /^[a-z0-9][a-z0-9-]*\.atlassian\.net$/.test(text) ? 'https://' + text : null;
   }
@@ -148,6 +156,8 @@ var JSC = (function () {
   }
 
   return {
+    DEMO_SITE: DEMO_SITE,
+    linkBase: linkBase,
     statusKind: statusKind,
     gmtOffset: gmtOffset,
     dateFromKey: dateFromKey,

@@ -267,7 +267,7 @@
     var path = '/rest/api/3/search/jql?maxResults=' + (max || 50) +
       '&fields=summary,status&jql=' + encodeURIComponent(jql);
     return api.jira(state.site, path).then(function (res) {
-      return res && res.ok ? JSC.parseTickets(res.data, state.site) : null;
+      return res && res.ok ? JSC.parseTickets(res.data, JSC.linkBase(state.site)) : null;
     });
   }
 
@@ -370,7 +370,7 @@
     ui.status.textContent = text;
     ui.status.hidden = !text;
     ui.status.classList.toggle('jsc-problem', !!isProblem);
-    ui.signin.hidden = !(isProblem && state.site);
+    ui.signin.hidden = !(isProblem && state.site && state.site !== JSC.DEMO_SITE);
     if (state.site) ui.signin.href = state.site;
   }
 
@@ -423,7 +423,7 @@
     ui.main.hidden = !state.site;
     if (!state.site) return;
 
-    ui.site.textContent = state.site.replace('https://', '');
+    ui.site.textContent = state.site === JSC.DEMO_SITE ? 'Sample tickets' : state.site.replace('https://', '');
     ui.lists.textContent = '';
     var sprint = JSC.filterTickets(state.sprint, state.query);
     var other = JSC.filterTickets(state.other, state.query);
@@ -483,11 +483,12 @@
     var show = el('button', 'jsc-button', 'Show my tickets'); show.type = 'submit';
     ui.setup.appendChild(show);
     ui.setup.appendChild(el('p', 'jsc-help', 'It uses the Jira sign-in this browser already has. Nothing is sent anywhere else.'));
+    ui.setup.appendChild(el('p', 'jsc-help', 'No Jira to hand? Type demo to try it with sample tickets.'));
     ui.setup.addEventListener('submit', function (event) {
       event.preventDefault();
       var site = JSC.normalizeSite(siteInput.value);
       if (!site) {
-        siteError.textContent = 'Enter an address like your-team.atlassian.net';
+        siteError.textContent = 'Enter an address like your-team.atlassian.net, or type demo';
         siteError.hidden = false;
         return;
       }

@@ -109,6 +109,70 @@ function planFingerprint(jira, manualKeys, today) {
   ]);
 }
 
+/**
+ * Sample tickets, for trying the extension with no Jira ("demo" as the
+ * address). Answers the same questions Jira would, for a sprint that started
+ * on Monday and ends on Friday of next week. Returns {ok, status, data}.
+ */
+function demoResponse(path, now) {
+  var decoded = decodeURIComponent(String(path));
+  var monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  var start = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate(), 9).toISOString();
+  var end = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 11, 17).toISOString();
+  var active = [{ id: 1, name: 'Sprint 12', state: 'active', boardId: 1, startDate: start, endDate: end }];
+  var next = [{ id: 2, name: 'Sprint 13', state: 'future', boardId: 1 }];
+  var issue = function (key, summary, status, category, points, sprint) {
+    return { key: key, fields: {
+      summary: summary, status: { name: status, statusCategory: { key: category } },
+      timeoriginalestimate: null, customfield_10016: points, customfield_10020: sprint
+    } };
+  };
+  var sprint = [
+    issue('APP-212', 'Checkout redesign', 'In Progress', 'indeterminate', 3, active),
+    issue('APP-198', 'Fix export bug', 'In Progress', 'indeterminate', 1, active),
+    issue('APP-205', 'Search filters', 'In Review', 'indeterminate', 1, active),
+    issue('APP-220', 'Audit log', 'To Do', 'new', 3, active),
+    issue('APP-231', 'Onboarding emails', 'To Do', 'new', 1, active),
+    issue('APP-240', 'Billing page copy', 'To Do', 'new', 1, active)
+  ];
+  var future = [
+    issue('APP-251', 'Dark mode', 'To Do', 'new', 2, next),
+    issue('APP-252', 'Export to CSV', 'To Do', 'new', 1, next)
+  ];
+  var other = [
+    issue('APP-150', 'Refactor billing module', 'Backlog', 'new', null, null),
+    issue('APP-163', 'Upgrade test runner', 'Backlog', 'new', null, null)
+  ];
+  var ok = function (data) { return { ok: true, status: 200, data: data }; };
+
+  if (decoded.indexOf('/rest/api/3/myself') === 0) return ok({ displayName: 'Sample user' });
+  if (decoded.indexOf('/rest/api/3/field') === 0) {
+    return ok([
+      { id: 'customfield_10020', name: 'Sprint', schema: { custom: SPRINT_FIELD_TYPE } },
+      { id: 'customfield_10016', name: 'Story Points' }
+    ]);
+  }
+  if (decoded.indexOf('/rest/agile/1.0/board/') === 0) return ok({ values: next });
+  if (decoded.indexOf('/rest/api/3/search/jql') !== 0) return { ok: false, status: 404, data: null };
+
+  var jql = (/[?&]jql=([^&]*)/.exec(String(path)) || ['', ''])[1];
+  jql = decodeURIComponent(jql);
+  var all = sprint.concat(future, other);
+  var found;
+  var key = /key = "([^"]+)"/.exec(jql);
+  var words = /summary ~ "([^"]*?)\*"/.exec(jql);
+  if (key) found = all.filter(function (i) { return i.key === key[1]; });
+  else if (words) {
+    var q = words[1].toLowerCase();
+    found = all.filter(function (i) { return i.fields.summary.toLowerCase().indexOf(q) !== -1; });
+  }
+  else if (jql.indexOf('futureSprints()') !== -1) found = future;
+  else if (jql.indexOf('sprint is EMPTY') !== -1) found = other.concat(future);
+  else if (jql.indexOf('openSprints()') !== -1) found = sprint;
+  else found = all;
+  return ok({ issues: found });
+}
+
 // ---------------------------------------------------------------------------
 // Jira and Google. Everything below runs in the extension's background worker.
 // ---------------------------------------------------------------------------
@@ -119,6 +183,7 @@ var SITE_PATTERN = /^https:\/\/[a-z0-9][a-z0-9-]*\.atlassian\.net$/;
 
 /** One read-only call to Jira, using the sign-in the browser already has. */
 function jiraFetch(site, path) {
+  if (site === JSC.DEMO_SITE) return Promise.resolve(demoResponse(path, new Date()));
   if (!SITE_PATTERN.test(String(site)) || !/^\/rest\/(api\/3|agile\/1\.0)\//.test(String(path))) {
     return Promise.resolve({ ok: false, status: 0, error: 'Not a Jira Cloud address.' });
   }
@@ -296,7 +361,7 @@ async function planSprint(options) {
   var fingerprint = planFingerprint(jira, byHand, today);
   if (options.onlyIfChanged && fingerprint === saved.jscFingerprint) return { ok: true, changed: false };
 
-  var settings = Object.assign({}, DEFAULTS, { site: site });
+  var settings = Object.assign({}, DEFAULTS, { site: JSC.linkBase(site) });
   var plan = buildFullPlan(withoutTickets(jira, byHand), today, settings, []);
   var calendarId = await ensurePlanCalendar();
   var events = '/calendars/' + encodeURIComponent(calendarId) + '/events';

@@ -50,7 +50,7 @@ var handlers = {
     var site = JSC.normalizeSite((await chrome.storage.local.get('jscSite')).jscSite);
     if (!site) throw new Error('no-site');
     var jira = withoutTickets(await readJira(site), message.skip || []);
-    var settings = Object.assign({}, DEFAULTS, { site: site });
+    var settings = Object.assign({}, DEFAULTS, { site: JSC.linkBase(site) });
     return { ok: true, items: buildFullPlan(jira, localDate(new Date()), settings, []) };
   },
   // Which tickets already have an event from this extension, from today on.
