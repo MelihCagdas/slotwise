@@ -29,6 +29,12 @@ On a remote team, nobody sees you are heads-down.
 
 No token. No server. Free and open source. It only reads Jira, from your own browser.
 
+## Slotwise for teams
+
+A version for whole teams is planned: a team view of who is on what, a heads-up to anyone who books over planned work, meeting load against the sprint, and Outlook as well as Google Calendar.
+
+It is not built yet. [Join the waiting list](https://github.com/MelihCagdas/slotwise/issues/1) with a thumbs-up or a comment.
+
 ## Two ways to use it
 
 | | Drag and drop | Automatic plan |
