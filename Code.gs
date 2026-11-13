@@ -280,6 +280,7 @@ function parseFutureIssues(issues, fieldIds, pointsOverride, toLocalDate) {
       byId[sprint.id] = {
         id: sprint.id,
         name: sprint.name || 'the next sprint',
+        boardId: sprint.boardId || null,
         startDate: sprint.startDate ? localDate(sprint.startDate) : null,
         endDate: sprint.endDate ? localDate(sprint.endDate) : null,
         issues: []
@@ -295,10 +296,40 @@ function parseFutureIssues(issues, fieldIds, pointsOverride, toLocalDate) {
     })
     .map(function (g) {
       return {
-        id: g.id, name: g.name, startDate: g.startDate, endDate: g.endDate,
+        id: g.id, name: g.name, boardId: g.boardId, startDate: g.startDate, endDate: g.endDate,
         tickets: parseIssues(g.issues, fieldIds, pointsOverride, toLocalDate).tickets
       };
     });
+}
+
+/**
+ * Puts the user's future sprints into the board's own order and adds the
+ * board's other future sprints as empty ones. A sprint that holds none of
+ * the user's tickets still takes up its weeks, so later sprints must not
+ * slide forward into them. `boardSprints` is the board's future sprint
+ * list, or null when it could not be read.
+ */
+function mergeSprintOrder(groups, boardSprints, toLocalDate) {
+  if (!boardSprints || !boardSprints.length) return groups;
+  var localDate = function (iso) {
+    return toLocalDate ? toLocalDate(iso) : String(iso).slice(0, 10);
+  };
+  var mine = {};
+  groups.forEach(function (g) { mine[g.id] = g; });
+  var seen = {};
+  var merged = boardSprints.map(function (s) {
+    seen[s.id] = true;
+    return mine[s.id] || {
+      id: s.id,
+      name: s.name || 'a future sprint',
+      boardId: s.originBoardId || null,
+      startDate: s.startDate ? localDate(s.startDate) : null,
+      endDate: s.endDate ? localDate(s.endDate) : null,
+      tickets: []
+    };
+  });
+  // Sprints from another board keep their place after this board's.
+  return merged.concat(groups.filter(function (g) { return !seen[g.id]; }));
 }
 
 /** Reads every page. `fetchPage(token)` returns {issues, nextPageToken}. */
@@ -369,6 +400,13 @@ function fetchTicketsWith(get, settings, toLocalDate) {
     // A 400 here means this site cannot answer sprint questions at all.
     var upcoming = searchIssues(get, FUTURE_JQL + ' ORDER BY Rank ASC', fields, null, [400]);
     future = parseFutureIssues(upcoming || [], fieldIds, settings.pointsField, toLocalDate);
+    var boardId = future.length ? future[0].boardId : null;
+    if (boardId) {
+      // Not every account may read the board; without it the order above stands.
+      var board = get('/rest/agile/1.0/board/' + boardId + '/sprint?state=future&maxResults=50',
+        'Jira sprint list', [400, 401, 403, 404]);
+      future = mergeSprintOrder(future, board && board.values, toLocalDate);
+    }
 
     var issues = searchIssues(get, SPRINT_JQL + ' AND statusCategory != Done ORDER BY Rank ASC',
       fields, null, [400]);

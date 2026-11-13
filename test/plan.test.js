@@ -131,3 +131,12 @@ test('buildFullPlan: no future sprints gives the same plan as before', () => {
   assert.deepEqual(buildFullPlan(jira, '2026-11-13', S, []).map(x => [x.key, x.startDate, x.endDate]),
     buildPlan(jira.tickets, '2026-11-13', '2026-11-17', S, []).map(x => [x.key, x.startDate, x.endDate]));
 });
+
+test('buildFullPlan: an empty future sprint still takes up its weeks', () => {
+  const plan = buildFullPlan({
+    tickets: [], sprintStart: '2026-11-02', sprintEnd: '2026-11-14',
+    future: [sprint(526, 'Sprint 73', []), sprint(527, 'Sprint 74', [t('C', 'To Do', 'new')])],
+  }, '2026-11-13', S, []);
+  assert.equal(plan.length, 1);
+  assert.equal(plan[0].startDate, '2026-11-30'); assert.equal(plan[0].endDate, '2026-12-12');
+});

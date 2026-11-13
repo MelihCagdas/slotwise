@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert'); // loose mode: values come from another vm context
 const { load } = require('./load');
 
-const { DEFAULTS, pickFieldIds, parseIssues, parseFutureIssues, collectPages, assertOk, fetchTicketsWith, checkSettings } = load();
+const { DEFAULTS, pickFieldIds, parseIssues, parseFutureIssues, mergeSprintOrder, collectPages, assertOk, fetchTicketsWith, checkSettings } = load();
 
 test('pickFieldIds finds sprint and both points fields', () => {
   const ids = pickFieldIds([
@@ -97,6 +97,7 @@ function fakeJira(routes) {
       }
     }
     if (decoded.includes('futureSprints')) return { issues: [] };
+    if (decoded.includes('/rest/agile/')) return null; // as if the board could not be read
     throw new Error('unexpected call: ' + decoded);
   };
   return { get, calls };
@@ -215,4 +216,32 @@ test('fetchTicketsWith: no open sprint but future sprint tickets means no backlo
   const out = fetchTicketsWith(jira.get, settings);
   assert.deepEqual(out.tickets, []);
   assert.equal(out.future.length, 1);
+});
+
+test('mergeSprintOrder: empty sprints on the board keep their place, so later sprints land in the right weeks', () => {
+  const mine = [{ id: 527, name: 'Sprint 74', boardId: 15, startDate: null, endDate: null, tickets: [{ key: 'T' }] }];
+  const merged = mergeSprintOrder(mine, [
+    { id: 526, name: 'Sprint 73', state: 'future' },
+    { id: 527, name: 'Sprint 74', state: 'future' },
+    { id: 528, name: 'Sprint 75', state: 'future', startDate: '2026-12-14T07:00:00.000Z', endDate: '2026-12-25T07:00:00.000Z' },
+  ]);
+  assert.deepEqual(merged.map(g => [g.name, g.tickets.length]), [['Sprint 73', 0], ['Sprint 74', 1], ['Sprint 75', 0]]);
+  assert.equal(merged[2].startDate, '2026-12-14');
+});
+
+test('mergeSprintOrder: without a board list the sprints are left as they were', () => {
+  const mine = [{ id: 527, name: 'Sprint 74', boardId: 15, startDate: null, endDate: null, tickets: [] }];
+  assert.deepEqual(mergeSprintOrder(mine, null), mine);
+});
+
+test('fetchTicketsWith: reads the board so a future sprint with none of your tickets still counts', () => {
+  const jira = fakeJira([
+    ['/myself', {}], ['/field', FIELDS],
+    ['/rest/agile/1.0/board/15/sprint', { values: [
+      { id: 526, name: 'Sprint 73', state: 'future' }, { id: 527, name: 'Sprint 74', state: 'future' }] }],
+    ['futureSprints', { issues: [issue('F', { customfield_10020: [future(527, 'Sprint 74', { boardId: 15 })] })] }],
+    ['sprint in openSprints()', { issues: [] }],
+  ]);
+  const out = fetchTicketsWith(jira.get, settings);
+  assert.deepEqual(out.future.map(g => g.name), ['Sprint 73', 'Sprint 74']);
 });
