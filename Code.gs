@@ -165,7 +165,7 @@ function buildPlan(tickets, today, sprintEnd, settings, skipDates) {
 }
 
 // ---------------------------------------------------------------------------
-// Jira. The first four functions are pure and unit tested.
+// Jira. Everything down to jiraGet_ is pure and unit tested.
 // ---------------------------------------------------------------------------
 
 var SPRINT_FIELD_TYPE = 'com.pyxis.greenhopper.jira:gh-sprint';
@@ -186,8 +186,11 @@ function pickFieldIds(fields) {
   return { sprint: sprint, points: points };
 }
 
-/** Turns Jira issues into tickets and finds the active sprint's last day. */
-function parseIssues(issues, fieldIds, pointsOverride) {
+/**
+ * Turns Jira issues into tickets and finds the active sprint's last day.
+ * `toLocalDate` turns Jira's UTC timestamp into a local 'YYYY-MM-DD'.
+ */
+function parseIssues(issues, fieldIds, pointsOverride, toLocalDate) {
   var pointFields = pointsOverride ? [pointsOverride] : fieldIds.points;
   var sprintEnd = null;
   var tickets = (issues || []).map(function (issue) {
@@ -199,7 +202,7 @@ function parseIssues(issues, fieldIds, pointsOverride) {
     var sprints = fieldIds.sprint && Array.isArray(f[fieldIds.sprint]) ? f[fieldIds.sprint] : [];
     sprints.forEach(function (s) {
       if (s && s.state === 'active' && s.endDate) {
-        var end = String(s.endDate).slice(0, 10);
+        var end = toLocalDate ? toLocalDate(s.endDate) : String(s.endDate).slice(0, 10);
         if (!sprintEnd || end > sprintEnd) sprintEnd = end;
       }
     });
@@ -241,59 +244,110 @@ function assertOk(code, body, what) {
   throw new Error(what + ' failed (' + code + '): ' + String(body || '').slice(0, 300));
 }
 
-function jiraGet_(settings, path, what, allowCodes) {
-  var response = UrlFetchApp.fetch(settings.site + path, {
-    method: 'get',
-    headers: {
-      Authorization: 'Basic ' + Utilities.base64Encode(settings.email + ':' + settings.token),
-      Accept: 'application/json'
-    },
-    muteHttpExceptions: true
+var SPRINT_JQL = 'assignee = currentUser() AND sprint in openSprints()';
+var OPEN_JQL = 'assignee = currentUser() AND statusCategory != Done';
+
+/**
+ * Runs one search and reads every page. `get(path, what, allowCodes)` returns
+ * the parsed reply, or null when Jira answered with one of `allowCodes`.
+ * Returns the issues, or null when the query itself was rejected.
+ */
+function searchIssues(get, jql, fields, limit, allowCodes) {
+  var rejected = false;
+  var issues = collectPages(function (token) {
+    var path = '/rest/api/3/search/jql?maxResults=' + Math.min(limit || 100, 100) +
+      '&fields=' + encodeURIComponent(fields.join(',')) +
+      '&jql=' + encodeURIComponent(jql) +
+      (token ? '&nextPageToken=' + encodeURIComponent(token) : '');
+    var page = get(path, 'Jira search', allowCodes);
+    if (page === null) { rejected = true; return {}; }
+    return { issues: page.issues, nextPageToken: limit ? null : page.nextPageToken };
   });
+  if (rejected) return null;
+  return limit ? issues.slice(0, limit) : issues;
+}
+
+/**
+ * Reads the user's open sprint tickets through `get`. Returns {tickets, sprintEnd}.
+ * Kept free of Google calls so it can be tested with a fake `get`.
+ */
+function fetchTicketsWith(get, settings, toLocalDate) {
+  // Jira answers a wrong token as an anonymous visitor: searches come back
+  // empty instead of failing. This call is the one that says "not signed in".
+  get('/rest/api/3/myself', 'Jira sign-in');
+
+  var fieldIds = pickFieldIds(get('/rest/api/3/field', 'Jira field list'));
+  var fields = ['summary', 'status', 'timeoriginalestimate'].concat(fieldIds.points);
+  if (settings.pointsField) fields.push(settings.pointsField);
+  if (fieldIds.sprint) fields.push(fieldIds.sprint);
+
+  if (fieldIds.sprint) {
+    // A 400 here means this site cannot answer sprint questions at all.
+    var issues = searchIssues(get, SPRINT_JQL + ' AND statusCategory != Done ORDER BY Rank ASC',
+      fields, null, [400]);
+    if (issues && issues.length) {
+      return parseIssues(issues, fieldIds, settings.pointsField, toLocalDate);
+    }
+    if (issues) {
+      // Nothing open. If the sprint still holds finished work of theirs,
+      // they are simply done: show nothing rather than pull in the backlog.
+      var any = searchIssues(get, SPRINT_JQL, ['summary', fieldIds.sprint], 1, [400]);
+      if (any && any.length) {
+        return { tickets: [], sprintEnd: parseIssues(any, fieldIds, null, toLocalDate).sprintEnd };
+      }
+    }
+  }
+
+  // No open sprint (for example a Kanban board): take the first open tickets.
+  var open = searchIssues(get, OPEN_JQL + ' ORDER BY Rank ASC', fields, settings.fallbackTickets);
+  return {
+    tickets: parseIssues(open, fieldIds, settings.pointsField, toLocalDate).tickets,
+    sprintEnd: null
+  };
+}
+
+/** Throws when an optional setting cannot be used. */
+function checkSettings(settings) {
+  var days = settings.workingDays;
+  var daysOk = days.length > 0 && days.every(function (d) {
+    return typeof d === 'number' && d % 1 === 0 && d >= 0 && d <= 6;
+  });
+  if (!daysOk) {
+    throw new Error('WORKING_DAYS must be numbers from 0 (Sunday) to 6 (Saturday), for example 1,2,3,4,5.');
+  }
+  var hour = settings.runHour;
+  if (!(typeof hour === 'number' && hour % 1 === 0 && hour >= 0 && hour <= 23)) {
+    throw new Error('RUN_HOUR must be a whole number from 0 to 23.');
+  }
+}
+
+function jiraGet_(settings, path, what, allowCodes) {
+  var response;
+  try {
+    response = UrlFetchApp.fetch(settings.site + path, {
+      method: 'get',
+      headers: {
+        Authorization: 'Basic ' + Utilities.base64Encode(settings.email + ':' + settings.token),
+        Accept: 'application/json'
+      },
+      muteHttpExceptions: true
+    });
+  } catch (err) {
+    throw new Error('Could not reach Jira at ' + settings.site + '. Check JIRA_SITE in Script Properties. (' +
+      err.message + ')');
+  }
   var code = response.getResponseCode();
   if ((allowCodes || []).indexOf(code) !== -1) return null;
   assertOk(code, response.getContentText(), what);
   return JSON.parse(response.getContentText());
 }
 
-function searchIssues_(settings, jql, fields, limit) {
-  var failed = false;
-  var issues = collectPages(function (token) {
-    if (failed) return {};
-    var path = '/rest/api/3/search/jql?maxResults=' + Math.min(limit || 100, 100) +
-      '&fields=' + encodeURIComponent(fields.join(',')) +
-      '&jql=' + encodeURIComponent(jql) +
-      (token ? '&nextPageToken=' + encodeURIComponent(token) : '');
-    // 400 means the site cannot answer this query (for example no sprints).
-    var page = jiraGet_(settings, path, 'Jira search', [400]);
-    if (page === null) { failed = true; return {}; }
-    if (limit) page.nextPageToken = null;
-    return page;
-  });
-  return failed ? null : issues;
-}
-
-/** Reads the user's open sprint tickets. Returns {tickets, sprintEnd}. */
 function fetchTickets_(settings) {
-  var fieldIds = pickFieldIds(jiraGet_(settings, '/rest/api/3/field', 'Jira field list'));
-  var fields = ['summary', 'status', 'timeoriginalestimate'].concat(fieldIds.points);
-  if (settings.pointsField) fields.push(settings.pointsField);
-  if (fieldIds.sprint) fields.push(fieldIds.sprint);
-
-  var issues = null;
-  if (fieldIds.sprint) {
-    issues = searchIssues_(settings,
-      'assignee = currentUser() AND sprint in openSprints() AND statusCategory != Done ORDER BY Rank ASC',
-      fields);
-  }
-  if (issues && issues.length) return parseIssues(issues, fieldIds, settings.pointsField);
-
-  // No open sprint (for example a Kanban board): take the first open tickets.
-  issues = searchIssues_(settings,
-    'assignee = currentUser() AND statusCategory != Done ORDER BY Rank ASC',
-    fields, settings.fallbackTickets) || [];
-  var parsed = parseIssues(issues.slice(0, settings.fallbackTickets), fieldIds, settings.pointsField);
-  return { tickets: parsed.tickets, sprintEnd: null };
+  var zone = Session.getScriptTimeZone();
+  return fetchTicketsWith(
+    function (path, what, allowCodes) { return jiraGet_(settings, path, what, allowCodes); },
+    settings,
+    function (iso) { return Utilities.formatDate(new Date(iso), zone, 'yyyy-MM-dd'); });
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +380,7 @@ function getSettings_() {
   if (props.WORKING_DAYS) settings.workingDays = splitList_(props.WORKING_DAYS).map(Number);
   if (props.ACTIVE_STATUSES) settings.activeStatuses = splitList_(props.ACTIVE_STATUSES);
   if (props.SKIP_STATUSES) settings.skipStatuses = splitList_(props.SKIP_STATUSES);
+  checkSettings(settings);
   return settings;
 }
 
@@ -365,7 +420,7 @@ function getPlanCalendar_(createIfMissing) {
   var calendar = id ? CalendarApp.getCalendarById(id) : null;
   if (!calendar && createIfMissing) {
     calendar = CalendarApp.createCalendar(CALENDAR_NAME, {
-      summary: 'Your Jira sprint tickets, drawn by Jira Sprint Calendar.',
+      description: 'Your Jira sprint tickets, drawn by Jira Sprint Calendar.',
       timeZone: Session.getScriptTimeZone()
     });
     props.setProperty('CALENDAR_ID', calendar.getId());
@@ -373,25 +428,35 @@ function getPlanCalendar_(createIfMissing) {
   return calendar;
 }
 
+var EVENT_TAG = 'jiraSprintCalendar';
+
 /**
- * Redraws the plan from today forward. Only ever touches the "Jira plan"
- * calendar. Bars from earlier days stay as a record of what was planned.
+ * Redraws the plan from today forward. Only touches events this script
+ * created, in the "Jira plan" calendar. Bars from earlier days stay as a
+ * record of what was planned.
  */
 function writePlan_(calendar, plan, today) {
-  var todayStart = localDate_(today);
-  calendar.getEvents(todayStart, localDate_(addDays_(today, 120))).forEach(function (event) {
-    if (event.getStartTime().getTime() >= todayStart.getTime()) {
+  var zone = Session.getScriptTimeZone();
+  // Dates are built at noon so a time zone difference between this script
+  // and the calendar can never push an all-day bar onto the wrong day.
+  var todayNoon = localDate_(today, 12);
+
+  calendar.getEvents(localDate_(today), localDate_(addDays_(today, 120))).forEach(function (event) {
+    if (!event.isAllDayEvent() || event.getTag(EVENT_TAG) !== '1') return;
+    var startDay = Utilities.formatDate(event.getAllDayStartDate(), zone, 'yyyy-MM-dd');
+    if (startDay >= today) {
       event.deleteEvent();
-    } else if (event.isAllDayEvent()) {
+    } else {
       // A bar that began before today is cut so it ends yesterday.
-      event.setAllDayDates(event.getAllDayStartDate(), todayStart);
+      event.setAllDayDates(event.getAllDayStartDate(), todayNoon);
     }
   });
 
   plan.forEach(function (item) {
     var event = calendar.createAllDayEvent(
-      item.title, localDate_(item.startDate), localDate_(item.endDate),
+      item.title, localDate_(item.startDate, 12), localDate_(item.endDate, 12),
       { description: item.description });
+    event.setTag(EVENT_TAG, '1');
     event.removeAllReminders();
     event.setColor(item.group === 1 ? CalendarApp.EventColor.GREEN : CalendarApp.EventColor.PALE_GREEN);
     try {

@@ -27,7 +27,7 @@ The bars are marked "free", so they never block your time or show you as busy. E
 
 You need a Jira Cloud account and a Google account.
 
-1. **Create a Jira API token.** Go to <https://id.atlassian.com/manage-profile/security/api-tokens>, choose **Create API token**, and copy it.
+1. **Create a Jira API token.** Go to <https://id.atlassian.com/manage-profile/security/api-tokens>, choose **Create API token** (the plain one, not "with scopes"), and copy it.
 2. **Create the script.** Go to <https://script.google.com>, choose **New project**, delete the sample code, and paste in the whole of [`Code.gs`](Code.gs). Save.
 3. **Add your details.** Open **Project Settings** (the gear icon), scroll to **Script Properties**, and add:
 
@@ -37,7 +37,8 @@ You need a Jira Cloud account and a Google account.
    | `JIRA_EMAIL` | The email you sign in to Jira with |
    | `JIRA_TOKEN` | The token from step 1 |
 
-4. **Run it once.** Back in the editor, pick `setup` in the function list and press **Run**. Google asks for permission to manage your calendars and to contact Jira. Approve it.
+4. **Check the time zone.** Still in **Project Settings**, make sure **Time zone** is your own. The script uses it to decide what "today" is.
+5. **Run it once.** Back in the editor, pick `setup` in the function list and press **Run**. Google asks for permission to manage your calendars and to contact Jira. Because this is your own script, Google may first show "Google hasn't verified this app": choose **Advanced**, then **Go to (your project name)**, then approve.
 
 Open Google Calendar. A new calendar called **Jira plan** now shows your tickets. It refreshes by itself every morning.
 
@@ -54,7 +55,7 @@ To refresh at any time, run `sync`.
 
 Because the spread is proportional, there is no "hours per point" setting. It works the same whether your team treats a point as an hour or as a day.
 
-Each morning it redraws from today forward. Earlier days are left as they were, so you keep a record of what was planned.
+Each morning it redraws from today forward. Earlier days are left as they were, so you keep a record of what was planned. It only ever changes bars it created itself.
 
 ## Optional settings
 
@@ -91,11 +92,11 @@ Open **Executions** in the script editor to see the last run. The message says w
 - "Check JIRA_SITE": the Jira address is wrong.
 - "Missing Script Properties": one of the three required values is not set.
 
-When a run fails, the calendar is left exactly as it was.
+Jira is always read before the calendar is touched, so when Jira cannot be read the calendar is left exactly as it was.
 
 ## Development
 
-The planning logic is plain JavaScript with no Google calls, so it can be tested with Node 20 or later:
+The planning logic is plain JavaScript with no Google calls, so it can be tested with Node 22 or later:
 
 ```
 npm test

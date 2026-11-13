@@ -1,6 +1,6 @@
 # Jira sprint on Google Calendar — design
 
-Working name: `jira-sprint-calendar`. Date: 2026-11-13. Status: approved 2026-11-13, after a live trial on a real calendar.
+Working name: `jira-sprint-calendar`. Date: 2026-11-13. Status: approved 2026-11-13.
 
 ## Intent
 
@@ -35,7 +35,7 @@ No server, no app, no account with us, nothing to tune.
 
 | Approach | Trade-off | Verdict |
 |---|---|---|
-| Claude plugin with one command | Least code, no tokens; only for Claude users | Rejected: must work for everyone |
+| Plugin for an AI assistant | Least code, no tokens; only for people who use that assistant | Rejected: must work for everyone |
 | **Google Apps Script** | Runs in the user's own Google account, daily timer, calendar access built in; user creates one Jira API token | **Chosen** |
 | Command-line tool | Flexible; each user must set up their own Google sign-in project | Rejected: too much setup |
 | Hosted calendar feed or Marketplace add-on | Smoothest install; needs hosting, review and upkeep | Rejected: not "less is more" |
@@ -74,7 +74,7 @@ No server, no app, no account with us, nothing to tune.
    overflow and no velocity setting.
    Worked example (5 days, weights 3, 1.5, 1.5, 2, 1, 0.5, 1, 1, 2 in order):
    Mon 1 ticket, Tue 1, Wed 2, Thu 2, Fri 3.
-5. **Write.** In the "Jira plan" calendar, delete the tool's events from today
+5. **Write.** In the "Jira plan" calendar, delete the tool's own events (it tags them) from today
    forward and create the new all-day events. Title: `KEY summary (N pt)`.
    Description: link to the ticket and its status. Events are marked "free"
    and have no reminders, so they never block the user's time. Group 1 uses
@@ -104,7 +104,7 @@ Past days are left alone, so they stay as a record of what was planned.
 ## Repository
 
 - `Code.gs` — the whole tool, one file.
-- `README.md` — what it does, a screenshot, the five-minute setup, the settings, how to remove it.
+- `README.md` — what it does, a sketch, the five-minute setup, the settings, how to remove it.
 - `LICENSE` — MIT.
 
 ## Left to the builder
