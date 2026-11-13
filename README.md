@@ -2,19 +2,32 @@
 
 # Slotwise
 
-**Your Jira tickets, on your calendar.** Your Jira tickets appear in Google Calendar, laid out across the days of the sprint, next to your meetings. No app to learn, no board to keep open.
+**Jira knows what you promised. Your calendar knows where your time goes. They never meet.**
 
-![A calendar week with Jira tickets shown as bars above the meetings](docs/preview.svg)
+Slotwise puts your Jira tickets on your Google Calendar, so the work you planned is as visible as your meetings.
 
-## Why
+[![Watch the 49-second video](docs/video-poster.png)](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-sales.mp4)
 
-Remote teams run on two tools that never meet. Jira knows what you committed to. Your calendar knows where your time goes. Nobody sees both at once, so the same things keep happening:
+▶ [Watch the 49-second video](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-sales.mp4) · [See the real screen recording](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-screen-recording.mp4)
 
-- A sprint looks fine on the board and impossible on the calendar.
-- A teammate books a meeting on the day you planned to finish a ticket, because they had no way to know.
-- "What are you working on this week?" gets asked in every standup.
+## The problem
 
-Slotwise puts the plan where people already look. Open your calendar and you see what you are delivering each day, this sprint and the next.
+On a remote team, nobody sees you are heads-down.
+
+- An empty slot on your calendar looks free, even when you planned real work for it.
+- So meetings pile on, and the ticket slips again.
+- Your teammates in other time zones ask "what are you on this week?" because the answer lives in a different tool.
+
+## What Slotwise does
+
+- **Your tickets, beside your calendar.** A panel in Google Calendar lists your Jira tickets, coloured by status.
+- **Drag one onto a slot.** It becomes a normal calendar event that you can stretch, move and share.
+- **Or press Auto-plan.** Your tickets are laid out across the week: work in progress first, sized by story points.
+- **Everyone can see it.** The events show as busy, so people booking you see the time is taken, and what for.
+
+**Transparency first. Respect for time. Real focus.**
+
+No token. No server. Free and open source. It only reads Jira, from your own browser.
 
 ## Two ways to use it
 
