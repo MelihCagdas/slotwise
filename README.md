@@ -22,53 +22,51 @@ On a remote team, nobody sees you are heads-down.
 
 ![Slotwise beside Google Calendar: a planned week and the ticket panel](docs/screenshot.png)
 
-- **Your tickets, beside your calendar.** A panel in Google Calendar lists your Jira tickets, coloured by status.
-- **Drag one onto a slot.** It becomes a normal calendar event that you can stretch, move and share.
-- **Or press Plan tasks.** Your tickets are laid out across the week: work in progress first, sized by story points.
-- **Everyone can see it.** The events show as busy, so people booking you see the time is taken, and what for.
-- **A heads-up when someone books over a ticket.** If a meeting invitation lands on a ticket you placed, Slotwise answers "Maybe" with a note: "Heads-up: I have APP-12 Fix login planned 10:00 to 11:30 then. I can still join if it is needed." Google emails that to the person who invited you. You can still change the answer to Yes or No.
-- **A plan that follows Jira.** Once you have planned, a ticket that changes status, size or sprint moves on your calendar by itself.
+Slotwise does your calendar work for you, so you keep your focus.
+
+- **It plans your week.** One click, and every sprint ticket is on your calendar, work in progress first, sized by story points. You never copy a ticket into a calendar again.
+- **It guards your time.** A ticket you drop on an hour is a real block, so an empty slot stops looking free and meetings stop landing on your work.
+- **It pushes back for you.** When someone books over a ticket anyway, it answers "Maybe" and tells them what you had planned. You do not write that message.
+- **It keeps itself up to date.** Move, finish or resize a ticket in Jira and your calendar follows.
+- **It tells your team what you are on.** Across time zones, anyone can open your calendar and see it, without asking you.
 
 **Transparency first. Respect for time. Real focus.**
 
 No token. No server. Free and open source. It only reads Jira, from your own browser.
 
-## Slotwise for teams
+## Set up in 5 minutes
 
-A version for whole teams is planned: a team view of who is on what, a heads-up to anyone who books over planned work, meeting load against the sprint, and Outlook as well as Google Calendar.
+You need Chrome or Edge on a computer, a Jira Cloud account, and Google Calendar.
 
-It is not built yet. [Join the waiting list](https://github.com/MelihCagdas/slotwise/issues/1) with a thumbs-up or a comment.
+1. **Download it.** On this page press **Code**, then **Download ZIP**, and unzip the file.
+2. **Open the extensions page.** Type `chrome://extensions` in the address bar.
+3. **Switch on Developer mode.** It is the switch at the top right.
+4. **Load it.** Press **Load unpacked** and choose the `extension` folder inside the unzipped folder.
+5. **Open Google Calendar.** The **Slotwise** panel is on the right. Type your Jira address, for example `your-team.atlassian.net`, and press **Show my tickets**.
 
-## Two ways to use it
+That is all. Your tickets are in the panel. Make sure you are signed in to Jira in the same browser.
 
-| | Drag and drop | Automatic plan |
-|---|---|---|
-| What it is | A panel of your Jira tickets beside Google Calendar | A script that lays out your whole sprint for you |
-| You do | Search, drag a ticket onto a day or an hour | Nothing, it refreshes every morning |
-| Result | An ordinary calendar event you can move, stretch or invite people to | All-day bars in a separate "Jira plan" calendar |
-| Setup | A browser extension, no token | A pasted script and a Jira API token |
+- **No Jira to hand?** Type `demo` as the address to try it with sample tickets.
+- **Want the automatic parts?** Press **Connect Google Calendar** at the bottom of the panel. See [Connect Google Calendar](#connect-google-calendar).
 
-Use either, or both.
+It is loaded by hand because it is not in the Chrome Web Store yet.
 
-## Drag and drop
+## Using it
 
-The extension adds a **Slotwise** panel to Google Calendar in your browser, listing your Jira tickets.
-
-- **Your tickets, in one list.** This sprint first, then your other open tickets.
+- **Your tickets, in one list.** This sprint first, then your other open tickets, coloured by status: grey for to do, blue for in progress, amber for in review or QA.
 - **Search.** Type to filter your own tickets. Three letters or more also searches the rest of Jira, and a ticket number such as `APP-12` finds that ticket.
-- **Drag onto the calendar.** Drop on an hour in week or day view for a one-hour event at that time. Drop on the strip under the date, or on a day in month view, for an all-day event.
-- **Colours by status.** Grey for to do, blue for in progress, amber for in review or QA.
-- **Plan tasks.** One button spreads the tickets that are still in the panel across the remaining days of the sprint (or the coming working days, if you do not use sprints): work in progress first, then board order, sized by story points. Tickets you already placed are left alone and get a tick in the panel.
-- **It is a normal event.** The title is the ticket number and name, and the description links to the ticket. Move it, stretch it across hours or days, change its colour, invite people. It shows as busy, so anyone booking you sees the time is taken.
-- **No token.** It uses the Jira sign-in your browser already has.
+- **Drag onto the calendar.** Drop on an hour in week or day view for an event at that time. Drop on the strip under the date, or on a day in month view, for an all-day event.
+- **It is a normal event.** The title is the ticket number and name, and the description links to the ticket. Move it, stretch it across hours or days, change its colour, invite people.
+- **Plan tasks.** One button spreads the tickets that are still in the panel across the remaining days of the sprint, or the coming working days if you do not use sprints. Tickets you already placed are left alone and get a tick in the panel.
+- **Fold it away.** The arrow at the top of the panel folds it into a small tab with the logo. Click the tab to bring it back.
 
-### Connect Google Calendar
+## Connect Google Calendar
 
 The panel works without this. Connecting adds three things, with nothing to switch on afterwards:
 
 - **Instant drops.** A dropped ticket is on the calendar in under a second, with no page change.
 - **A plan that follows Jira.** After you press **Plan tasks** once, the plan is kept up to date while Chrome is running.
-- **Heads-ups.** Every two minutes, and whenever you open Calendar, Slotwise looks at the invitations you have not answered in the next two weeks. One that overlaps a ticket placed on an hour is answered "Maybe" with the note, once. All-day plan bars never count as a clash.
+- **Heads-ups.** Every two minutes, and whenever you open Calendar, Slotwise looks at the invitations you have not answered in the next two weeks. One that overlaps a ticket placed on an hour is answered "Maybe" with a note, once: "Heads-up: I have APP-12 Fix login planned 10:00 to 11:30 then. I can still join if it is needed." Google emails that to the person who invited you. You can still change the answer to Yes or No. All-day plan bars never count as a clash.
 
 Press **Connect Google Calendar** at the bottom of the panel and choose **Allow**. Each of the two automatic features has an off switch in **Customise**, under "Done for you". **Disconnect Google Calendar** is there too: your events stay, and Slotwise stops changing your calendar by itself.
 
@@ -77,129 +75,61 @@ Two limits to know:
 - Until Google has reviewed the app, connecting only works for Google accounts on the project's test-user list, and Google shows an "unverified app" warning first. Everyone else can use the panel, drag and drop and Plan tasks without connecting.
 - Google only puts an invitation on your calendar when it knows the sender (a colleague, a contact, someone you have written to). An invitation it holds back cannot clash with anything, so no heads-up is sent for it.
 
-### Customise
+## Customise
 
 The **Customise** button (the sliders icon at the top of the panel) sets:
 
 | Setting | Default | What it does |
 |---|---|---|
-| Auto-plan uses | My current sprint | Or all your open tickets, for teams that do not work in sprints. |
+| Plan tasks uses | My current sprint | Or all your open tickets, for teams that do not work in sprints. |
 | Working days | Monday to Friday | The days tickets are spread across. |
 | Statuses that go first | In Progress | Tickets in these statuses are placed first. |
-| Statuses to leave out | none | Tickets in these statuses are not auto-planned, for example a QA status. |
+| Statuses to leave out | none | Tickets in these statuses are not planned, for example a QA status. |
 | With no sprint, spread over | 10 working days | How far ahead to plan when there is no sprint. |
 | A dropped ticket lasts | 1 hour | 30 minutes, 1 hour, 1.5 hours or 2 hours. |
 
-### Try it without Jira
+## How Plan tasks decides
 
-Type `demo` as the Jira address to load sample tickets. Everything else works as normal, so you can see it before connecting your own Jira.
-
-### Install the extension
-
-It is not in the Chrome Web Store yet, so it is loaded by hand. This takes about a minute and works in Chrome and Edge.
-
-1. Download this repository: **Code**, then **Download ZIP**, and unzip it.
-2. Open `chrome://extensions` in the browser.
-3. Switch on **Developer mode** (top right).
-4. Click **Load unpacked** and choose the `extension` folder.
-5. Open Google Calendar. In the **Slotwise** panel on the right, enter your Jira address, for example `your-team.atlassian.net`.
-
-Make sure you are signed in to Jira in the same browser.
-
-### What happens on a drop
-
-The extension opens Google Calendar's own new-event page with the ticket filled in, saves it, and returns you to the week you were looking at. This takes a few seconds. Untick **Save a dropped ticket straight away** in the panel if you would rather check each event before it is saved.
-
-**Plan tasks** does the same for each ticket in turn, a few seconds a ticket. Keep the tab open and do not type in it while it runs: Google Calendar treats single keys as shortcuts and will interrupt it. While it runs, a planning screen covers the page and shows each ticket being ticked off; press **Stop** on it to stop. What is already placed stays. Pressing the button again later places only tickets that are not on the calendar yet.
-
-The extension asks to run on `calendar.google.com` and to read from `atlassian.net`. It only reads Jira. If you connect Google Calendar it also asks Google for permission to see and change your events: it creates events for your tickets, keeps its own **Jira plan** calendar, and answers "Maybe" with the heads-up note on an invitation that lands on a ticket. It changes nothing else, and it sends nothing anywhere else.
-
-## Automatic plan
-
-The script reads your sprint and draws it for you. The rest of this page from **What you get** to **Remove it** describes the script.
-
-## What you get
-
-- **Your sprint as a plan.** Every open ticket assigned to you becomes an all-day bar on the days it should take, sized by its story points.
-- **In-progress work first.** What you have started is placed on today and the next days. The rest follows in board order.
-- **The next sprints too.** Tickets already placed in coming sprints are drawn in grey in the weeks after.
-- **Always current.** It refreshes every morning. Finish a ticket and its bar goes away; move one into the sprint and it appears.
-- **Nothing to tune.** There is no "hours per point" setting. It works whether your team treats a point as an hour or a day.
-- **Safe by design.** It reads Jira and never changes it. It writes to its own calendar, called **Jira plan**, and never touches your events. Hide it with one click, or remove it completely with one command.
-- **Private.** It runs inside your own Google account. Your data goes from Jira to your calendar and nowhere else.
-
-## Set up in 5 minutes
-
-You need a Jira Cloud account and a Google account.
-
-1. **Create a Jira API token.** Go to <https://id.atlassian.com/manage-profile/security/api-tokens>, choose **Create API token** (the plain one, not "with scopes"), and copy it.
-2. **Create the script.** Go to <https://script.google.com>, choose **New project**, delete the sample code, and paste in the whole of [`Code.gs`](Code.gs). Save.
-3. **Add your details.** Open **Project Settings** (the gear icon), scroll to **Script Properties**, and add:
-
-   | Property | Value |
-   |---|---|
-   | `JIRA_SITE` | Your Jira address, for example `your-team.atlassian.net` |
-   | `JIRA_EMAIL` | The email you sign in to Jira with |
-   | `JIRA_TOKEN` | The token from step 1 |
-
-4. **Check the time zone.** Still in **Project Settings**, make sure **Time zone** is your own. The script uses it to decide what "today" is.
-5. **Run it once.** Back in the editor, pick `setup` in the function list and press **Run**. Google asks for permission to manage your calendars and to contact Jira. Because this is your own script, Google may first show "Google hasn't verified this app": choose **Advanced**, then **Go to (your project name)**, then approve.
-
-Open Google Calendar. A new calendar called **Jira plan** now shows your tickets. It refreshes by itself every morning. To refresh at any time, run `sync`.
-
-A one-click version with no token and no script to paste is planned. See [Roadmap](#roadmap).
-
-## How it decides
-
-- **Which tickets.** Tickets assigned to you, in an open sprint, that are not done.
+- **Which tickets.** Tickets assigned to you, in an open sprint, that are not done and not on your calendar yet.
 - **Order.** Tickets in the status "In Progress" come first. Next come other started work, such as tickets in review. Last come tickets you have not started. Inside each group the order is your board's rank.
 - **Size.** Story points, when your tickets have them. If none do, the original time estimate. If there is neither, every ticket counts the same. A ticket with no size gets the average of the others.
-- **Spread.** Each ticket gets a share of the remaining working days equal to its share of the total size, rounded to whole days. A large ticket spans several days. Small tickets share a day. Everything always fits inside the sprint.
-- **Days.** Monday to Friday. Days where you have an out-of-office event covering 09:00 to 17:00 are skipped.
-- **Future sprints.** Tickets in a coming sprint are drawn in grey after the current sprint. Jira only gives a sprint its dates when it starts, so until then the script assumes each coming sprint follows straight on and lasts as many working days as the current one. The bar's description says "dates estimated". It corrects itself once the sprint starts.
-- **No sprint.** If you have no open or coming sprint, for example on a Kanban board, it takes your first 20 open tickets and spreads them over the next 10 working days.
+- **Spread.** Each ticket gets a share of the remaining working days equal to its share of the total size, rounded to whole days. A large ticket spans several days. Small tickets share a day. Everything fits inside the sprint.
+- **Future sprints.** Tickets in a coming sprint are placed in the weeks after the current one. Jira only gives a sprint its dates when it starts, so until then each coming sprint is assumed to follow straight on.
+- **No sprint.** On a Kanban board, for example, it takes your first 20 open tickets and spreads them over the next 10 working days.
 
-When you finish a ticket, its bar goes away at the next refresh and the remaining tickets spread out to fill the days. Each morning it redraws from today forward. Earlier days are left as they were, so you keep a record of what was planned. It only ever changes bars it created itself.
+## What happens behind a drop
 
-Colours: dark green is work in progress, light green is the rest of the current sprint, grey is a future sprint.
+Without the Google connection, the extension opens Google Calendar's own new-event page with the ticket filled in, saves it, and returns you to the view you were in. A small card covers the page while it does this, so it takes a few seconds but nothing jumps. Untick **Save a dropped ticket straight away** in the panel if you would rather check each event before it is saved.
 
-## Optional settings
+**Plan tasks** does the same for each ticket in turn. A planning screen covers the page and shows each ticket being ticked off; press **Stop** on it to stop. What is already placed stays. Keep the tab open and do not type in it while it runs.
 
-Add any of these as Script Properties. None are required.
+## Privacy and permissions
 
-| Property | Default | What it does |
-|---|---|---|
-| `ACTIVE_STATUSES` | `In Progress` | Status names that go first. Separate several with commas. |
-| `SKIP_STATUSES` | none | Status names to leave out, for example `Ready for QA`. |
-| `WORKING_DAYS` | `1,2,3,4,5` | Working days as numbers, where 0 is Sunday and 6 is Saturday. |
-| `RUN_HOUR` | `7` | Hour of the day for the daily refresh. Run `setup` again after changing it. |
-| `POINTS_FIELD` | found automatically | The Jira field ID for story points, for example `customfield_10016`. Only needed if the wrong field is picked. |
-
-## Remove it
-
-Run `remove`. It deletes the daily timer and the **Jira plan** calendar. Nothing else in your calendar is touched. You can then delete the script project and revoke the Jira token.
-
-## Privacy
-
-The script runs inside your own Google account. Your Jira token is stored in your script's properties and is sent only to your Jira site. No data goes anywhere else, and there is no server run by this project.
+- The extension asks to run on `calendar.google.com` and to read from `atlassian.net`. It only reads Jira, using the sign-in your browser already has.
+- If you connect Google Calendar it also asks Google for permission to see and change your events. It creates events for your tickets, keeps its own **Jira plan** calendar, and answers "Maybe" with the heads-up note on an invitation that lands on a ticket. It changes nothing else.
+- There is no server run by this project. Nothing is sent anywhere except to your own Jira and your own Google Calendar.
 
 ## Limits today
 
 - Jira Cloud only. Jira Server and Data Center are not supported.
-- Google Calendar only.
-- Shows your own tickets only.
-- It plans whole days. It does not block hours around your meetings, and the bars are marked "free", so they do not stop anyone booking you.
-- The script needs a Jira API token and a pasted script.
-- The extension works in Chrome and Edge on a computer, not on a phone. It is loaded by hand until it is in the Chrome Web Store.
-- The extension depends on how Google Calendar's page is built. If Google changes the page, dropping may stop working until the extension is updated.
+- Google Calendar only, in Chrome or Edge on a computer, not on a phone.
+- It shows your own tickets only.
+- **Plan tasks** makes all-day bars, which Google Calendar counts as free time. Only a ticket dropped on an hour blocks that hour.
+- It is loaded by hand until it is in the Chrome Web Store.
+- It depends on how Google Calendar's page is built. If Google changes the page, dropping may stop working until the extension is updated.
+
+## Slotwise for teams
+
+A version for whole teams is planned: a team view of who is on what, meeting load against the sprint, and Outlook as well as Google Calendar.
+
+It is not built yet. [Join the waiting list](https://github.com/MelihCagdas/slotwise/issues/1) with a thumbs-up or a comment.
 
 ## Roadmap
 
 These are planned, not built:
 
-- **Chrome Web Store listing.** Install the extension in one click.
+- **Chrome Web Store listing.** Install in one click.
 - **Google review.** The Google connection works for listed test users today. After Google has reviewed the app it will work for everyone, without the warning.
-- **One-click automatic plan.** A Google Calendar add-on: install it, sign in to Jira, done. No token, no script.
 - **Team view.** See a teammate's plan next to your own.
 - **More calendars.** Outlook after Google.
 
@@ -207,26 +137,14 @@ Ideas and pull requests are welcome. Open an issue to discuss anything larger fi
 
 ## If something goes wrong
 
-**The extension**
-
 - "You are not signed in to Jira in this browser": open Jira in the same browser, sign in, then press **Refresh** (the arrows icon at the top of the panel).
 - "Slotwise was updated. Reload this page to carry on": the extension was updated or reloaded while Calendar was open. Reload the Calendar tab.
 - "Check the event, then press Save": Slotwise opened the new-event page but did not press Save itself. Press Save, or close the page to leave the ticket in the list.
 - A ticket shows "On your calendar" after you deleted its event: press **Clear the "on your calendar" marks** at the bottom of the panel.
 
-**The script**
-
-Open **Executions** in the script editor to see the last run. The message says what to check:
-
-- "Check JIRA_EMAIL and JIRA_TOKEN": the email or token is wrong, or the token has expired.
-- "Check JIRA_SITE": the Jira address is wrong.
-- "Missing Script Properties": one of the three required values is not set.
-
-Jira is always read before the calendar is touched, so when Jira cannot be read the calendar is left exactly as it was.
-
 ## Development
 
-The planning logic of the script and the drop logic of the extension (`extension/lib.js`) are plain JavaScript with no browser or Google calls, so they can be tested with Node 22 or later:
+The planning rules and the drop logic are plain JavaScript with no browser or Google calls, so they can be tested with Node 22 or later:
 
 ```
 npm test
@@ -240,7 +158,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-[`DESIGN.md`](DESIGN.md) explains the design and the choices behind it.
+[`DESIGN.md`](DESIGN.md) explains the design and the choices behind it. An older script version, which draws the plan every morning without a browser, is described in [`docs/script.md`](docs/script.md).
 
 ## Licence
 
