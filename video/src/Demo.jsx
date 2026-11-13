@@ -308,6 +308,7 @@ export const DragDemo = () => {
   );
 };
 
+
 const PLAN = [
   {col: 1, span: 1, title: 'APP-198 Fix export bug (1 pt)', key: 'APP-198'},
   {col: 2, span: 1, title: 'APP-205 Search filters (1 pt)', key: 'APP-205'},
@@ -315,26 +316,70 @@ const PLAN = [
   {col: 5, span: 1, title: 'APP-231 Onboarding (1 pt)', key: 'APP-231'},
 ];
 
-/** Plan tasks: the rest of the week fills in, one ticket after another. */
+/** The planning screen the extension shows while it places tickets. `show` 0..1, `step` how many are placed (may be fractional). */
+const PlanningScreen = ({show, step, finished}) => {
+  const n = PLAN.length;
+  const now = Math.min(n - 1, Math.floor(step));
+  return (
+    <div style={{position: 'absolute', inset: 0, background: 'rgba(248,250,253,.97)', display: 'grid', placeItems: 'center', opacity: show}}>
+      <div style={{width: 520, boxSizing: 'border-box', padding: 30, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 26, color: INK,
+        boxShadow: '0 22px 56px rgba(9,30,66,.18), 0 1px 2px rgba(9,30,66,.1)', transform: `translateY(${(1 - show) * 16}px) scale(${0.98 + 0.02 * show})`}}>
+        <div style={{display: 'flex', alignItems: 'center', gap: 18}}>
+          <Mark size={52} />
+          <div>
+            <div style={{fontSize: 25, fontWeight: 600, letterSpacing: -0.4}}>{finished ? 'On your calendar' : 'Planning your tasks'}</div>
+            <div style={{fontSize: 18, color: MUTED, marginTop: 3}}>{finished ? `${n} tickets placed` : `Ticket ${now + 1} of ${n}`}</div>
+          </div>
+        </div>
+        <div style={{height: 8, borderRadius: 4, background: SOFT, margin: '26px 0 20px', overflow: 'hidden'}}>
+          <div style={{height: '100%', borderRadius: 4, width: `${Math.min(1, step / n) * 100}%`, background: finished ? GREEN : BLUE}} />
+        </div>
+        {PLAN.map((b, i) => {
+          const done = step >= i + 1;
+          const current = !done && i === now;
+          const pop = done ? Math.min(1, (step - (i + 1)) * 4 + 0.6) : 1;
+          return (
+            <div key={b.key} style={{display: 'flex', alignItems: 'center', gap: 13, height: 46, padding: '0 13px', borderRadius: 13, marginBottom: 5,
+              background: current ? SOFT : 'transparent', color: done || current ? INK : MUTED, fontSize: 18, fontWeight: current ? 500 : 400}}>
+              <span style={{width: 26, height: 26, borderRadius: 13, boxSizing: 'border-box', display: 'grid', placeItems: 'center', flexShrink: 0,
+                border: `2.5px solid ${done ? GREEN : LINE}`, borderTopColor: current ? BLUE : done ? GREEN : LINE, background: done ? GREEN : 'transparent',
+                transform: current ? `rotate(${step * 900}deg)` : `scale(${pop})`}}>
+                {done ? <Icon name="check" size={17} color="#fff" /> : null}
+              </span>
+              {b.title}
+            </div>
+          );
+        })}
+        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, height: 46}}>
+          <span style={{fontSize: 16, color: MUTED, opacity: finished ? 0 : 1}}>Keep this tab open.</span>
+          <span style={{height: 46, padding: '0 20px', borderRadius: 13, border: `1px solid ${LINE}`, display: 'grid', placeItems: 'center',
+            fontSize: 18, fontWeight: 500, opacity: finished ? 0 : 1}}>Stop</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/** Plan tasks: the planning screen ticks the tickets off, then the planned week is there. */
 export const PlanDemo = () => {
   const f = useCurrentFrame();
-  const START = 40, STEP = 22;
-  const p = path(f, [[0, [colX(2) + colW / 2, hourY(12.5)]], [26, AT.plan], [150, AT.plan], [185, [colX(3) + 60, HEAD + 22]]]);
-  const done = f >= START + PLAN.length * STEP;
-  const index = Math.min(PLAN.length, Math.floor((f - START) / STEP) + 1);
+  const START = 46, STEP = 19, END = START + PLAN.length * STEP;
+  const p = path(f, [[0, [colX(2) + colW / 2, hourY(12.5)]], [26, AT.plan], [END + 26, AT.plan], [END + 60, [colX(3) + 60, HEAD + 22]]]);
+  const step = Math.max(0, Math.min(PLAN.length, (f - START) / STEP));
+  const finished = f >= END;
+  const show = Math.min(appear(f, 34, 9), 1 - appear(f, END + 16, 9));
   const placed = {'APP-212': 1};
   const bars = PLAN.map((b, i) => {
-    const a = appear(f, START + i * STEP + 6, 10);
-    placed[b.key] = a;
+    const a = f < END + 12 ? 0 : appear(f, END + 18 + i * 5, 10);
+    placed[b.key] = f >= END + 12 ? 1 : 0;
     return {...b, a};
   });
-  const left = PLAN.filter((b) => placed[b.key] <= 0.5).length;
   return (
-    <Stage zoom={tween(f, 150, 216, 1, 1.05)} focus={[colX(2), HEAD]}>
+    <Stage zoom={tween(f, END + 26, 216, 1, 1.05)} focus={[colX(2), HEAD]}>
       <Week bars={bars} events={[{col: 2, start: 10, hours: 2.5, title: 'APP-212 Checkout redesign', label: '10:00 – 12:30', a: 1}]} />
       <Panel placed={placed} pressed={f >= 30 && f < 36 ? 1 : 0}
-        stop={f >= 36 && !done} plan={f >= 36 && !done ? `Placing ${Math.max(1, index)} of ${PLAN.length} · Stop` : 'Plan tasks'}
-        help={done ? 'Every ticket is on your calendar.' : `${left} ticket${left === 1 ? ' is' : 's are'} not on your calendar yet.`} />
+        help={f >= END + 12 ? 'Every ticket is on your calendar.' : '4 tickets are not on your calendar yet.'} />
+      {show > 0 ? <PlanningScreen show={show} step={step} finished={finished} /> : null}
       <Pointer x={p.x} y={p.y} click={click(f, 30)} />
     </Stage>
   );
