@@ -163,3 +163,290 @@ function buildPlan(tickets, today, sprintEnd, settings, skipDates) {
     };
   });
 }
+
+// ---------------------------------------------------------------------------
+// Jira. The first four functions are pure and unit tested.
+// ---------------------------------------------------------------------------
+
+var SPRINT_FIELD_TYPE = 'com.pyxis.greenhopper.jira:gh-sprint';
+var POINTS_FIELD_NAMES = ['story points', 'story point estimate'];
+
+/** Finds the sprint field and the story points fields in Jira's field list. */
+function pickFieldIds(fields) {
+  var sprint = null;
+  var byName = {};
+  (fields || []).forEach(function (f) {
+    if (!sprint && f.schema && f.schema.custom === SPRINT_FIELD_TYPE) sprint = f.id;
+    var name = String(f.name || '').trim().toLowerCase();
+    if (POINTS_FIELD_NAMES.indexOf(name) !== -1 && !byName[name]) byName[name] = f.id;
+  });
+  var points = POINTS_FIELD_NAMES
+    .map(function (name) { return byName[name]; })
+    .filter(function (id) { return !!id; });
+  return { sprint: sprint, points: points };
+}
+
+/** Turns Jira issues into tickets and finds the active sprint's last day. */
+function parseIssues(issues, fieldIds, pointsOverride) {
+  var pointFields = pointsOverride ? [pointsOverride] : fieldIds.points;
+  var sprintEnd = null;
+  var tickets = (issues || []).map(function (issue) {
+    var f = issue.fields || {};
+    var points = null;
+    pointFields.forEach(function (id) {
+      if (points === null && typeof f[id] === 'number') points = f[id];
+    });
+    var sprints = fieldIds.sprint && Array.isArray(f[fieldIds.sprint]) ? f[fieldIds.sprint] : [];
+    sprints.forEach(function (s) {
+      if (s && s.state === 'active' && s.endDate) {
+        var end = String(s.endDate).slice(0, 10);
+        if (!sprintEnd || end > sprintEnd) sprintEnd = end;
+      }
+    });
+    var status = f.status || {};
+    return {
+      key: issue.key,
+      summary: f.summary || '',
+      status: status.name || '',
+      category: (status.statusCategory && status.statusCategory.key) || 'new',
+      points: points,
+      estimateSeconds: typeof f.timeoriginalestimate === 'number' ? f.timeoriginalestimate : null
+    };
+  });
+  return { tickets: tickets, sprintEnd: sprintEnd };
+}
+
+/** Reads every page. `fetchPage(token)` returns {issues, nextPageToken}. */
+function collectPages(fetchPage) {
+  var all = [];
+  var token;
+  for (var page = 0; page < 50; page++) {
+    var result = fetchPage(token) || {};
+    all = all.concat(result.issues || []);
+    token = result.nextPageToken;
+    if (!token) break;
+  }
+  return all;
+}
+
+/** Throws a readable error for a failed Jira call. */
+function assertOk(code, body, what) {
+  if (code >= 200 && code < 300) return;
+  if (code === 401 || code === 403) {
+    throw new Error(what + ' was refused (' + code + '). Check JIRA_EMAIL and JIRA_TOKEN in Script Properties.');
+  }
+  if (code === 404) {
+    throw new Error(what + ' was not found (404). Check JIRA_SITE in Script Properties.');
+  }
+  throw new Error(what + ' failed (' + code + '): ' + String(body || '').slice(0, 300));
+}
+
+function jiraGet_(settings, path, what, allowCodes) {
+  var response = UrlFetchApp.fetch(settings.site + path, {
+    method: 'get',
+    headers: {
+      Authorization: 'Basic ' + Utilities.base64Encode(settings.email + ':' + settings.token),
+      Accept: 'application/json'
+    },
+    muteHttpExceptions: true
+  });
+  var code = response.getResponseCode();
+  if ((allowCodes || []).indexOf(code) !== -1) return null;
+  assertOk(code, response.getContentText(), what);
+  return JSON.parse(response.getContentText());
+}
+
+function searchIssues_(settings, jql, fields, limit) {
+  var failed = false;
+  var issues = collectPages(function (token) {
+    if (failed) return {};
+    var path = '/rest/api/3/search/jql?maxResults=' + Math.min(limit || 100, 100) +
+      '&fields=' + encodeURIComponent(fields.join(',')) +
+      '&jql=' + encodeURIComponent(jql) +
+      (token ? '&nextPageToken=' + encodeURIComponent(token) : '');
+    // 400 means the site cannot answer this query (for example no sprints).
+    var page = jiraGet_(settings, path, 'Jira search', [400]);
+    if (page === null) { failed = true; return {}; }
+    if (limit) page.nextPageToken = null;
+    return page;
+  });
+  return failed ? null : issues;
+}
+
+/** Reads the user's open sprint tickets. Returns {tickets, sprintEnd}. */
+function fetchTickets_(settings) {
+  var fieldIds = pickFieldIds(jiraGet_(settings, '/rest/api/3/field', 'Jira field list'));
+  var fields = ['summary', 'status', 'timeoriginalestimate'].concat(fieldIds.points);
+  if (settings.pointsField) fields.push(settings.pointsField);
+  if (fieldIds.sprint) fields.push(fieldIds.sprint);
+
+  var issues = null;
+  if (fieldIds.sprint) {
+    issues = searchIssues_(settings,
+      'assignee = currentUser() AND sprint in openSprints() AND statusCategory != Done ORDER BY Rank ASC',
+      fields);
+  }
+  if (issues && issues.length) return parseIssues(issues, fieldIds, settings.pointsField);
+
+  // No open sprint (for example a Kanban board): take the first open tickets.
+  issues = searchIssues_(settings,
+    'assignee = currentUser() AND statusCategory != Done ORDER BY Rank ASC',
+    fields, settings.fallbackTickets) || [];
+  var parsed = parseIssues(issues.slice(0, settings.fallbackTickets), fieldIds, settings.pointsField);
+  return { tickets: parsed.tickets, sprintEnd: null };
+}
+
+// ---------------------------------------------------------------------------
+// Google Calendar and the entry points: setup, sync, remove.
+// ---------------------------------------------------------------------------
+
+function splitList_(value) {
+  return String(value || '').split(',')
+    .map(function (s) { return s.trim(); })
+    .filter(function (s) { return s !== ''; });
+}
+
+function getSettings_() {
+  var props = PropertiesService.getScriptProperties().getProperties();
+  var missing = ['JIRA_SITE', 'JIRA_EMAIL', 'JIRA_TOKEN'].filter(function (k) { return !props[k]; });
+  if (missing.length) {
+    throw new Error('Missing Script Properties: ' + missing.join(', ') +
+      '. Add them under Project Settings > Script Properties.');
+  }
+  var site = props.JIRA_SITE.trim().replace(/\/+$/, '');
+  if (!/^https?:\/\//i.test(site)) site = 'https://' + site;
+
+  var settings = Object.assign({}, DEFAULTS, {
+    site: site,
+    email: props.JIRA_EMAIL.trim(),
+    token: props.JIRA_TOKEN.trim(),
+    pointsField: (props.POINTS_FIELD || '').trim() || null,
+    runHour: props.RUN_HOUR ? Number(props.RUN_HOUR) : 7
+  });
+  if (props.WORKING_DAYS) settings.workingDays = splitList_(props.WORKING_DAYS).map(Number);
+  if (props.ACTIVE_STATUSES) settings.activeStatuses = splitList_(props.ACTIVE_STATUSES);
+  if (props.SKIP_STATUSES) settings.skipStatuses = splitList_(props.SKIP_STATUSES);
+  return settings;
+}
+
+function todayString_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+function localDate_(dateString, hour) {
+  var p = dateString.split('-').map(Number);
+  return new Date(p[0], p[1] - 1, p[2], hour || 0, 0, 0);
+}
+
+/** Dates where an out-of-office event covers 09:00 to 17:00. */
+function outOfOfficeDates_(fromDate, toDate) {
+  var out = [];
+  try {
+    var calendar = CalendarApp.getDefaultCalendar();
+    var events = calendar.getEvents(localDate_(fromDate), localDate_(addDays_(toDate, 1)))
+      .filter(function (e) { return e.getEventType() === CalendarApp.EventType.OUT_OF_OFFICE; });
+    for (var d = fromDate; d <= toDate; d = addDays_(d, 1)) {
+      var from = localDate_(d, 9).getTime();
+      var to = localDate_(d, 17).getTime();
+      var away = events.some(function (e) {
+        return e.getStartTime().getTime() <= from && e.getEndTime().getTime() >= to;
+      });
+      if (away) out.push(d);
+    }
+  } catch (err) {
+    console.warn('Could not read out-of-office days, planning without them: ' + err.message);
+  }
+  return out;
+}
+
+function getPlanCalendar_(createIfMissing) {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('CALENDAR_ID');
+  var calendar = id ? CalendarApp.getCalendarById(id) : null;
+  if (!calendar && createIfMissing) {
+    calendar = CalendarApp.createCalendar(CALENDAR_NAME, {
+      summary: 'Your Jira sprint tickets, drawn by Jira Sprint Calendar.',
+      timeZone: Session.getScriptTimeZone()
+    });
+    props.setProperty('CALENDAR_ID', calendar.getId());
+  }
+  return calendar;
+}
+
+/**
+ * Redraws the plan from today forward. Only ever touches the "Jira plan"
+ * calendar. Bars from earlier days stay as a record of what was planned.
+ */
+function writePlan_(calendar, plan, today) {
+  var todayStart = localDate_(today);
+  calendar.getEvents(todayStart, localDate_(addDays_(today, 120))).forEach(function (event) {
+    if (event.getStartTime().getTime() >= todayStart.getTime()) {
+      event.deleteEvent();
+    } else if (event.isAllDayEvent()) {
+      // A bar that began before today is cut so it ends yesterday.
+      event.setAllDayDates(event.getAllDayStartDate(), todayStart);
+    }
+  });
+
+  plan.forEach(function (item) {
+    var event = calendar.createAllDayEvent(
+      item.title, localDate_(item.startDate), localDate_(item.endDate),
+      { description: item.description });
+    event.removeAllReminders();
+    event.setColor(item.group === 1 ? CalendarApp.EventColor.GREEN : CalendarApp.EventColor.PALE_GREEN);
+    try {
+      event.setTransparency(CalendarApp.EventTransparency.TRANSPARENT);
+    } catch (err) {
+      // Older accounts: the bar still shows, it just counts as busy.
+    }
+  });
+}
+
+/** Reads Jira and redraws the plan. Runs every morning once `setup` has run. */
+function sync() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return;
+  try {
+    var settings = getSettings_();
+    var today = todayString_();
+
+    // Everything is read and planned first. The calendar is only touched
+    // once that has worked, so a Jira problem never leaves it half-drawn.
+    var jira = fetchTickets_(settings);
+    var horizon = jira.sprintEnd && jira.sprintEnd >= today ? jira.sprintEnd : addDays_(today, 30);
+    var skipDates = outOfOfficeDates_(today, horizon);
+    var plan = buildPlan(jira.tickets, today, jira.sprintEnd, settings, skipDates);
+
+    writePlan_(getPlanCalendar_(true), plan, today);
+    console.log('Planned ' + plan.length + ' tickets' +
+      (jira.sprintEnd ? ' up to ' + jira.sprintEnd : ' (no open sprint found)') + '.');
+  } catch (err) {
+    console.error('Jira Sprint Calendar did not update: ' + err.message);
+    throw err;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteTriggers_() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'sync') ScriptApp.deleteTrigger(trigger);
+  });
+}
+
+/** Run once: creates the "Jira plan" calendar, the daily timer, and the first plan. */
+function setup() {
+  var settings = getSettings_();
+  getPlanCalendar_(true);
+  deleteTriggers_();
+  ScriptApp.newTrigger('sync').timeBased().everyDays(1).atHour(settings.runHour).create();
+  sync();
+}
+
+/** Takes everything away: the daily timer and the "Jira plan" calendar. */
+function remove() {
+  deleteTriggers_();
+  var calendar = getPlanCalendar_(false);
+  if (calendar) calendar.deleteCalendar();
+  PropertiesService.getScriptProperties().deleteProperty('CALENDAR_ID');
+}
