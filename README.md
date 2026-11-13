@@ -1,3 +1,5 @@
+<img src="docs/logo.png" alt="Slotwise logo" width="96">
+
 # Slotwise
 
 **Your Jira tickets, on your calendar.** Your Jira tickets appear in Google Calendar, laid out across the days of the sprint, next to your meetings. No app to learn, no board to keep open.
