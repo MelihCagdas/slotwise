@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Jira Sprint Calendar",
+  "version": "0.1.0",
+  "description": "Your Jira tickets in a panel beside Google Calendar. Search, then drag one onto a day or an hour to put it on your calendar.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://*.atlassian.net/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://calendar.google.com/calendar/*"],
+      "js": ["lib.js", "content.js"],
+      "css": ["panel.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

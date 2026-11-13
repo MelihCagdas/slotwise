@@ -1,0 +1,156 @@
+/* Jira Sprint Calendar: the panel beside Google Calendar. */
+#jsc-root {
+  --jsc-bg: #ffffff;
+  --jsc-fg: #1f2328;
+  --jsc-muted: #5f6368;
+  --jsc-line: #dadce0;
+  --jsc-soft: #f1f3f4;
+  --jsc-accent: #0b57d0;
+  --jsc-started: #0b8043;
+  --jsc-problem: #b3261e;
+  position: fixed;
+  top: 72px;
+  right: 60px;
+  bottom: 16px;
+  width: 280px;
+  z-index: 2000;
+  font: 13px/1.4 "Google Sans", Roboto, Arial, sans-serif;
+  color: var(--jsc-fg);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+#jsc-root.jsc-dark {
+  --jsc-bg: #1f1f1f;
+  --jsc-fg: #e3e3e3;
+  --jsc-muted: #a8abb0;
+  --jsc-line: #444746;
+  --jsc-soft: #2d2f31;
+  --jsc-accent: #a8c7fa;
+  --jsc-started: #6dd58c;
+  --jsc-problem: #f2b8b5;
+}
+#jsc-root [hidden] { display: none !important; }
+#jsc-root.jsc-closed { width: 0; }
+#jsc-root.jsc-closed .jsc-panel { display: none; }
+/* While a ticket is being dragged the panel gets out of the way. */
+#jsc-root.jsc-dragging { opacity: 0.25; transform: translateX(240px); pointer-events: none; }
+
+#jsc-root .jsc-toggle {
+  position: absolute;
+  top: 8px;
+  left: -28px;
+  width: 28px;
+  min-height: 44px;
+  padding: 6px 0;
+  border: 1px solid var(--jsc-line);
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+  background: var(--jsc-bg);
+  color: var(--jsc-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+}
+#jsc-root.jsc-closed .jsc-toggle { left: -28px; }
+#jsc-root .jsc-toggle:focus-visible,
+#jsc-root button:focus-visible,
+#jsc-root input:focus-visible,
+#jsc-root a:focus-visible { outline: 2px solid var(--jsc-accent); outline-offset: 1px; }
+
+#jsc-root .jsc-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 12px 10px;
+  box-sizing: border-box;
+  background: var(--jsc-bg);
+  border: 1px solid var(--jsc-line);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+#jsc-root .jsc-title { font-size: 15px; font-weight: 600; }
+#jsc-root .jsc-main { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; }
+#jsc-root .jsc-setup { display: flex; flex-direction: column; gap: 8px; }
+#jsc-root .jsc-label { font-weight: 600; }
+#jsc-root .jsc-note { margin: 0; color: var(--jsc-muted); font-size: 12px; }
+
+#jsc-root .jsc-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid var(--jsc-line);
+  border-radius: 8px;
+  background: var(--jsc-bg);
+  color: var(--jsc-fg);
+  font: inherit;
+}
+#jsc-root .jsc-button {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--jsc-accent);
+  color: var(--jsc-bg);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+#jsc-root .jsc-text-button {
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--jsc-accent);
+  font: inherit;
+  cursor: pointer;
+}
+#jsc-root .jsc-link { color: var(--jsc-accent); }
+#jsc-root .jsc-status { color: var(--jsc-muted); }
+#jsc-root .jsc-problem { color: var(--jsc-problem); }
+
+#jsc-root .jsc-lists { flex: 1; min-height: 0; overflow-y: auto; }
+#jsc-root .jsc-heading {
+  margin: 10px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--jsc-muted);
+}
+#jsc-root .jsc-heading:first-child { margin-top: 0; }
+#jsc-root .jsc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+#jsc-root .jsc-ticket {
+  padding: 7px 9px;
+  border: 1px solid var(--jsc-line);
+  border-left: 4px solid var(--jsc-line);
+  border-radius: 8px;
+  background: var(--jsc-soft);
+  cursor: grab;
+}
+#jsc-root .jsc-ticket.jsc-started { border-left-color: var(--jsc-started); }
+#jsc-root .jsc-ticket:active { cursor: grabbing; }
+#jsc-root .jsc-ticket-top { display: flex; justify-content: space-between; gap: 8px; }
+#jsc-root .jsc-key { color: var(--jsc-accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+#jsc-root .jsc-key:hover { text-decoration: underline; }
+#jsc-root .jsc-status { font-size: 12px; }
+#jsc-root .jsc-ticket .jsc-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#jsc-root .jsc-summary { overflow-wrap: anywhere; }
+
+#jsc-root .jsc-foot { border-top: 1px solid var(--jsc-line); padding-top: 8px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+#jsc-root .jsc-check { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+#jsc-root .jsc-foot-row { display: flex; align-items: center; gap: 6px; }
+#jsc-root .jsc-site { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--jsc-muted); }
+
+#jsc-root .jsc-hint {
+  position: fixed;
+  z-index: 2001;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--jsc-fg);
+  color: var(--jsc-bg);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  #jsc-root { transition: none; }
+}

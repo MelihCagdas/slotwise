@@ -14,6 +14,49 @@ Remote teams run on two tools that never meet. Jira knows what you committed to.
 
 Jira Sprint Calendar puts the plan where people already look. Open your calendar and you see what you are delivering each day, this sprint and the next.
 
+## Two ways to use it
+
+| | Drag and drop | Automatic plan |
+|---|---|---|
+| What it is | A panel of your Jira tickets beside Google Calendar | A script that lays out your whole sprint for you |
+| You do | Search, drag a ticket onto a day or an hour | Nothing, it refreshes every morning |
+| Result | An ordinary calendar event you can move, stretch or invite people to | All-day bars in a separate "Jira plan" calendar |
+| Setup | A browser extension, no token | A pasted script and a Jira API token |
+
+Use either, or both.
+
+## Drag and drop
+
+The extension adds a **Jira tickets** panel to Google Calendar in your browser.
+
+- **Your tickets, in one list.** This sprint first, then your other open tickets.
+- **Search.** Type to filter your own tickets. Three letters or more also searches the rest of Jira, and a ticket number such as `APP-12` finds that ticket.
+- **Drag onto the calendar.** Drop on an hour in week or day view for a one-hour event at that time. Drop on the strip under the date, or on a day in month view, for an all-day event.
+- **It is a normal event.** The title is the ticket number and name, and the description links to the ticket. Move it, stretch it across hours or days, change its colour, invite people. It shows as busy, so anyone booking you sees the time is taken.
+- **No token.** It uses the Jira sign-in your browser already has.
+
+### Install the extension
+
+It is not in the Chrome Web Store yet, so it is loaded by hand. This takes about a minute and works in Chrome and Edge.
+
+1. Download this repository: **Code**, then **Download ZIP**, and unzip it.
+2. Open `chrome://extensions` in the browser.
+3. Switch on **Developer mode** (top right).
+4. Click **Load unpacked** and choose the `extension` folder.
+5. Open Google Calendar. In the **Jira tickets** panel on the right, enter your Jira address, for example `your-team.atlassian.net`.
+
+Make sure you are signed in to Jira in the same browser.
+
+### What happens on a drop
+
+The extension opens Google Calendar's own new-event page with the ticket filled in, saves it, and returns you to the week you were looking at. This takes a few seconds. Untick **Save the event straight away** in the panel if you would rather check each event before it is saved.
+
+The extension asks for two permissions: to run on `calendar.google.com`, and to read from `atlassian.net`. It only reads Jira. It sends nothing anywhere else.
+
+## Automatic plan
+
+The script reads your sprint and draws it for you. The rest of this page from **What you get** to **Remove it** describes the script.
+
 ## What you get
 
 - **Your sprint as a plan.** Every open ticket assigned to you becomes an all-day bar on the days it should take, sized by its story points.
@@ -85,15 +128,18 @@ The script runs inside your own Google account. Your Jira token is stored in you
 - Google Calendar only.
 - Shows your own tickets only.
 - It plans whole days. It does not block hours around your meetings, and the bars are marked "free", so they do not stop anyone booking you.
-- Setup needs a Jira API token and a pasted script.
+- The script needs a Jira API token and a pasted script.
+- The extension works in Chrome and Edge on a computer, not on a phone. It is loaded by hand until it is in the Chrome Web Store.
+- The extension depends on how Google Calendar's page is built. If Google changes the page, dropping may stop working until the extension is updated.
 
 ## Roadmap
 
 These are planned, not built:
 
-- **One-click install.** A Google Calendar add-on: install it, sign in to Jira, done. No token, no script.
-- **A ticket list inside Calendar.** A side panel with your sprint tickets, to place one on a day yourself.
-- **Focus blocks.** Optionally hold real time for a ticket, so people booking you see that the time is taken and what for.
+- **Chrome Web Store listing.** Install the extension in one click.
+- **Instant drops.** Create the event without opening Google's new-event page.
+- **Show what is already placed.** Mark tickets in the panel that are on the calendar.
+- **One-click automatic plan.** A Google Calendar add-on: install it, sign in to Jira, done. No token, no script.
 - **Team view.** See a teammate's plan next to your own.
 - **More calendars.** Outlook after Google.
 
@@ -111,7 +157,7 @@ Jira is always read before the calendar is touched, so when Jira cannot be read 
 
 ## Development
 
-The planning logic is plain JavaScript with no Google calls, so it can be tested with Node 22 or later:
+The planning logic of the script and the drop logic of the extension (`extension/lib.js`) are plain JavaScript with no browser or Google calls, so they can be tested with Node 22 or later:
 
 ```
 npm test
