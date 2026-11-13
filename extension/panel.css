@@ -6,8 +6,11 @@
   --jsc-line: #dadce0;
   --jsc-soft: #f1f3f4;
   --jsc-accent: #0b57d0;
-  --jsc-started: #0b8043;
   --jsc-problem: #b3261e;
+  --jsc-todo: #5f6368;   --jsc-todo-bg: #e8eaed;
+  --jsc-doing: #0b57d0;  --jsc-doing-bg: #d3e3fd;
+  --jsc-review: #8a5a00; --jsc-review-bg: #fdecc8;
+  --jsc-done: #0b6b3a;   --jsc-done-bg: #d4f1df;
   position: fixed;
   top: 72px;
   right: 60px;
@@ -25,8 +28,11 @@
   --jsc-line: #444746;
   --jsc-soft: #2d2f31;
   --jsc-accent: #a8c7fa;
-  --jsc-started: #6dd58c;
   --jsc-problem: #f2b8b5;
+  --jsc-todo: #c4c7c5;   --jsc-todo-bg: #3c4043;
+  --jsc-doing: #a8c7fa;  --jsc-doing-bg: #0842a0;
+  --jsc-review: #fdd663; --jsc-review-bg: #5c4400;
+  --jsc-done: #6dd58c;   --jsc-done-bg: #0f5223;
 }
 #jsc-root [hidden] { display: none !important; }
 #jsc-root.jsc-closed { width: 0; }
@@ -73,7 +79,8 @@
 #jsc-root .jsc-main { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; }
 #jsc-root .jsc-setup { display: flex; flex-direction: column; gap: 8px; }
 #jsc-root .jsc-label { font-weight: 600; }
-#jsc-root .jsc-note { margin: 0; color: var(--jsc-muted); font-size: 12px; }
+#jsc-root .jsc-help { margin: 0; color: var(--jsc-muted); font-size: 12px; }
+#jsc-root .jsc-note { font-size: 12px; font-weight: 600; }
 
 #jsc-root .jsc-input {
   width: 100%;
@@ -119,23 +126,48 @@
 #jsc-root .jsc-heading:first-child { margin-top: 0; }
 #jsc-root .jsc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 #jsc-root .jsc-ticket {
+  --kind: var(--jsc-todo);
+  --kind-bg: var(--jsc-todo-bg);
   padding: 7px 9px;
   border: 1px solid var(--jsc-line);
-  border-left: 4px solid var(--jsc-line);
+  border-left: 5px solid var(--kind);
   border-radius: 8px;
-  background: var(--jsc-soft);
+  background: var(--jsc-bg);
   cursor: grab;
 }
-#jsc-root .jsc-ticket.jsc-started { border-left-color: var(--jsc-started); }
+#jsc-root .jsc-doing { --kind: var(--jsc-doing); --kind-bg: var(--jsc-doing-bg); }
+#jsc-root .jsc-review { --kind: var(--jsc-review); --kind-bg: var(--jsc-review-bg); }
+#jsc-root .jsc-done { --kind: var(--jsc-done); --kind-bg: var(--jsc-done-bg); }
+#jsc-root .jsc-todo { --kind: var(--jsc-todo); --kind-bg: var(--jsc-todo-bg); }
+#jsc-root .jsc-ticket:hover { background: var(--jsc-soft); }
 #jsc-root .jsc-ticket:active { cursor: grabbing; }
-#jsc-root .jsc-ticket-top { display: flex; justify-content: space-between; gap: 8px; }
+#jsc-root .jsc-ticket.jsc-placed { opacity: 0.72; }
+#jsc-root .jsc-ticket-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 3px; }
 #jsc-root .jsc-key { color: var(--jsc-accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
 #jsc-root .jsc-key:hover { text-decoration: underline; }
-#jsc-root .jsc-status { font-size: 12px; }
-#jsc-root .jsc-ticket .jsc-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#jsc-root .jsc-pill {
+  max-width: 62%;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--kind-bg);
+  color: var(--kind);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 #jsc-root .jsc-summary { overflow-wrap: anywhere; }
+#jsc-root .jsc-onc { margin-top: 3px; font-size: 11px; font-weight: 600; color: var(--jsc-done); }
 
-#jsc-root .jsc-foot { border-top: 1px solid var(--jsc-line); padding-top: 8px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+#jsc-root .jsc-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--jsc-muted); }
+#jsc-root .jsc-legend-item { display: inline-flex; align-items: center; gap: 4px; }
+#jsc-root .jsc-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--kind); }
+#jsc-root .jsc-legend-item.jsc-todo { --kind: var(--jsc-todo); }
+
+#jsc-root .jsc-foot { border-top: 1px solid var(--jsc-line); padding-top: 8px; display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
+#jsc-root .jsc-foot .jsc-text-button { align-self: flex-start; padding-left: 0; }
+#jsc-root .jsc-button:disabled { opacity: 0.6; cursor: default; }
 #jsc-root .jsc-check { display: flex; align-items: center; gap: 4px; cursor: pointer; }
 #jsc-root .jsc-foot-row { display: flex; align-items: center; gap: 6px; }
 #jsc-root .jsc-site { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--jsc-muted); }

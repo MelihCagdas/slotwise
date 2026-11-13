@@ -1,0 +1,344 @@
+/**
+ * Jira Sprint Calendar, the automatic plan.
+ * Reads the sprint from Jira (with the browser's Jira sign-in) and keeps a
+ * "Jira plan" calendar in Google Calendar in step with it. Uses the planning
+ * rules in plan.js, which are the same ones the Apps Script version uses.
+ *
+ * The first block is pure and unit tested. The second talks to Jira and Google.
+ */
+
+function localDate(d) {
+  var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+
+function barColor(item) {
+  return item.future ? '8' : item.group === 1 ? '10' : '2'; // grey, dark green, light green
+}
+
+/** The Google Calendar event for one automatic bar. */
+function allDayEventBody(item) {
+  return {
+    summary: item.title,
+    description: item.description,
+    start: { date: item.startDate },
+    end: { date: item.endDate },
+    transparency: 'transparent', // shows as free: it never blocks the person's time
+    colorId: barColor(item),
+    reminders: { useDefault: false },
+    extendedProperties: { private: { jsc: '1', jscKey: item.key } }
+  };
+}
+
+/**
+ * The event for a ticket dropped by hand. `startMin` null means all day;
+ * otherwise a one-hour event at that time, `offset` being the calendar's
+ * time zone such as '+03:00'.
+ */
+function timedEventBody(ticket, date, startMin, offset) {
+  var body = {
+    summary: JSC.ticketTitle(ticket),
+    description: ticket.url,
+    extendedProperties: { private: { jscManual: '1', jscKey: ticket.key } }
+  };
+  if (startMin === null || startMin === undefined) {
+    body.start = { date: date };
+    body.end = { date: addDays_(date, 1) };
+    return body;
+  }
+  var stamp = function (minutes) {
+    var day = addDays_(date, Math.floor(minutes / 1440));
+    var m = minutes % 1440;
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    return day + 'T' + pad(Math.floor(m / 60)) + ':' + pad(m % 60) + ':00' + offset;
+  };
+  body.start = { dateTime: stamp(startMin) };
+  body.end = { dateTime: stamp(startMin + 60) };
+  return body;
+}
+
+/**
+ * Compares the bars on the calendar with the bars the plan wants.
+ * `existing` is [{id, key, start, end, summary, colorId}], `desired` is the
+ * output of buildFullPlan. Returns what to keep, create, remove and trim.
+ * Bars from earlier days are never removed: they are the record of the plan.
+ */
+function diffPlan(existing, desired, today) {
+  var used = {};
+  var out = { keep: [], create: [], remove: [], trim: [] };
+  existing.forEach(function (e) {
+    if (e.start < today) {
+      if (e.end > today) out.trim.push({ id: e.id, end: today });
+      return;
+    }
+    var match = -1;
+    desired.forEach(function (item, i) {
+      if (match === -1 && !used[i] && item.key === e.key && item.startDate === e.start &&
+          item.endDate === e.end && item.title === e.summary && barColor(item) === e.colorId) match = i;
+    });
+    if (match === -1) out.remove.push(e);
+    else { used[match] = true; out.keep.push(e); }
+  });
+  desired.forEach(function (item, i) { if (!used[i]) out.create.push(item); });
+  return out;
+}
+
+/** The Jira result without the tickets the person has placed by hand. */
+function withoutTickets(jira, keys) {
+  var skip = {};
+  keys.forEach(function (k) { skip[k] = true; });
+  var keep = function (t) { return !skip[t.key]; };
+  return {
+    tickets: jira.tickets.filter(keep),
+    sprintStart: jira.sprintStart,
+    sprintEnd: jira.sprintEnd,
+    future: (jira.future || []).map(function (s) {
+      return { id: s.id, name: s.name, startDate: s.startDate, endDate: s.endDate, tickets: s.tickets.filter(keep) };
+    })
+  };
+}
+
+/** A short text that changes whenever the plan would. Used to skip needless work. */
+function planFingerprint(jira, manualKeys, today) {
+  var brief = function (t) { return [t.key, t.status, t.points, t.estimateSeconds]; };
+  return JSON.stringify([
+    today, jira.sprintStart, jira.sprintEnd,
+    jira.tickets.map(brief),
+    (jira.future || []).map(function (s) { return [s.id, s.startDate, s.endDate, s.tickets.map(brief)]; }),
+    manualKeys.slice().sort()
+  ]);
+}
+
+// ---------------------------------------------------------------------------
+// Jira and Google. Everything below runs in the extension's background worker.
+// ---------------------------------------------------------------------------
+
+var GCAL = 'https://www.googleapis.com/calendar/v3';
+var CLIENT_ID_PLACEHOLDER = 'REPLACE_WITH_GOOGLE_CLIENT_ID';
+var SITE_PATTERN = /^https:\/\/[a-z0-9][a-z0-9-]*\.atlassian\.net$/;
+
+/** One read-only call to Jira, using the sign-in the browser already has. */
+function jiraFetch(site, path) {
+  if (!SITE_PATTERN.test(String(site)) || !/^\/rest\/(api\/3|agile\/1\.0)\//.test(String(path))) {
+    return Promise.resolve({ ok: false, status: 0, error: 'Not a Jira Cloud address.' });
+  }
+  return fetch(site + path, { method: 'GET', credentials: 'include', headers: { Accept: 'application/json' } })
+    .then(function (response) {
+      return response.text().then(function (text) {
+        var data = null;
+        try { data = JSON.parse(text); } catch (e) { /* not JSON, for example a sign-in page */ }
+        return { ok: response.ok, status: response.status, data: data };
+      });
+    })
+    .catch(function (error) {
+      return { ok: false, status: 0, error: String(error && error.message || error) };
+    });
+}
+
+/** Reads the open sprint, future sprints and their order. Same steps as the script. */
+async function readJira(site) {
+  var get = async function (path, allowCodes) {
+    var res = await jiraFetch(site, path);
+    if (res.ok) return res.data;
+    if ((allowCodes || []).indexOf(res.status) !== -1) return null;
+    throw new Error(res.status === 401 || res.status === 403 ? 'jira-signin' : 'jira-' + res.status);
+  };
+  var search = async function (jql, fields, limit, allowCodes) {
+    var all = [];
+    var token = null;
+    for (var page = 0; page < 50; page++) {
+      var data = await get('/rest/api/3/search/jql?maxResults=' + Math.min(limit || 100, 100) +
+        '&fields=' + encodeURIComponent(fields.join(',')) + '&jql=' + encodeURIComponent(jql) +
+        (token ? '&nextPageToken=' + encodeURIComponent(token) : ''), allowCodes);
+      if (data === null) return null;
+      all = all.concat(data.issues || []);
+      token = limit ? null : data.nextPageToken;
+      if (!token) break;
+    }
+    return limit ? all.slice(0, limit) : all;
+  };
+  var toLocal = function (iso) { return localDate(new Date(iso)); };
+
+  // Jira answers a signed-out browser as an anonymous visitor, with empty
+  // results instead of an error. This call is the one that says so.
+  await get('/rest/api/3/myself');
+
+  var fieldIds = pickFieldIds(await get('/rest/api/3/field'));
+  var fields = ['summary', 'status', 'timeoriginalestimate'].concat(fieldIds.points);
+  if (fieldIds.sprint) fields.push(fieldIds.sprint);
+
+  var future = [];
+  if (fieldIds.sprint) {
+    var upcoming = await search(FUTURE_JQL + ' ORDER BY Rank ASC', fields, null, [400]);
+    future = parseFutureIssues(upcoming || [], fieldIds, null, toLocal);
+    var boardId = future.length ? future[0].boardId : null;
+    if (boardId) {
+      var board = await get('/rest/agile/1.0/board/' + boardId + '/sprint?state=future&maxResults=50',
+        [400, 401, 403, 404]);
+      future = mergeSprintOrder(future, board && board.values, toLocal);
+    }
+    var issues = await search(SPRINT_JQL + ' AND statusCategory != Done ORDER BY Rank ASC', fields, null, [400]);
+    if (issues && issues.length) {
+      var active = parseIssues(issues, fieldIds, null, toLocal);
+      active.future = future;
+      return active;
+    }
+    if (issues) {
+      var any = await search(SPRINT_JQL, ['summary', fieldIds.sprint], 1, [400]);
+      if (any && any.length) {
+        var done = parseIssues(any, fieldIds, null, toLocal);
+        return { tickets: [], sprintStart: done.sprintStart, sprintEnd: done.sprintEnd, future: future };
+      }
+    }
+    if (future.length) return { tickets: [], sprintStart: null, sprintEnd: null, future: future };
+  }
+  var open = await search(OPEN_JQL + ' ORDER BY Rank ASC', fields, DEFAULTS.fallbackTickets);
+  return { tickets: parseIssues(open, fieldIds, null, toLocal).tickets, sprintStart: null, sprintEnd: null, future: [] };
+}
+
+/** True when this copy of the extension has been registered with Google. */
+function isRegistered() {
+  var oauth = chrome.runtime.getManifest().oauth2;
+  return !!(oauth && oauth.client_id && oauth.client_id.indexOf(CLIENT_ID_PLACEHOLDER) === -1);
+}
+
+/** A Google sign-in token, or null. `interactive` may show Google's "Allow" window. */
+async function googleToken(interactive) {
+  if (!isRegistered()) return null;
+  try {
+    var result = await chrome.identity.getAuthToken({ interactive: !!interactive });
+    return typeof result === 'string' ? result : (result && result.token) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function gcal(method, path, body) {
+  for (var attempt = 0; attempt < 2; attempt++) {
+    var token = await googleToken(false);
+    if (!token) throw new Error('google-signin');
+    var response = await fetch(GCAL + path, {
+      method: method,
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (response.status === 401 && attempt === 0) {
+      await chrome.identity.removeCachedAuthToken({ token: token }); // expired: get a fresh one
+      continue;
+    }
+    if (response.status === 204) return null;
+    var text = await response.text();
+    if (!response.ok) throw new Error('google-' + response.status + ' ' + text.slice(0, 200));
+    return text ? JSON.parse(text) : null;
+  }
+  throw new Error('google-signin');
+}
+
+/** The id of the "Jira plan" calendar, creating it the first time. */
+async function ensurePlanCalendar() {
+  var saved = (await chrome.storage.local.get('jscCalendarId')).jscCalendarId;
+  if (saved) {
+    try {
+      await gcal('GET', '/calendars/' + encodeURIComponent(saved));
+      return saved;
+    } catch (e) {
+      if (!/^google-(404|410)/.test(e.message)) throw e; // the calendar was deleted: make a new one
+    }
+  }
+  var created = await gcal('POST', '/calendars', {
+    summary: CALENDAR_NAME,
+    description: 'Your Jira sprint tickets, drawn by Jira Sprint Calendar.'
+  });
+  await chrome.storage.local.set({ jscCalendarId: created.id });
+  return created.id;
+}
+
+/** Events this extension created (they carry a private tag), from `timeMin` on. */
+async function listTagged(calendarId, tag, timeMin) {
+  var out = [];
+  var pageToken = null;
+  do {
+    var data = await gcal('GET', '/calendars/' + encodeURIComponent(calendarId) + '/events' +
+      '?singleEvents=true&maxResults=250&timeMin=' + encodeURIComponent(timeMin) +
+      '&privateExtendedProperty=' + encodeURIComponent(tag) +
+      (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''));
+    (data.items || []).forEach(function (e) {
+      var tags = (e.extendedProperties && e.extendedProperties.private) || {};
+      out.push({
+        id: e.id, key: tags.jscKey || '', summary: e.summary || '', colorId: e.colorId || '',
+        start: (e.start && e.start.date) || '', end: (e.end && e.end.date) || ''
+      });
+    });
+    pageToken = data.nextPageToken || null;
+  } while (pageToken);
+  return out;
+}
+
+/**
+ * Reads Jira and brings the "Jira plan" calendar in step with it.
+ * Tickets the person placed by hand are left out of the automatic plan.
+ * `onlyIfChanged` skips the work when nothing has moved since last time.
+ */
+async function planSprint(options) {
+  options = options || {};
+  var saved = await chrome.storage.local.get(['jscSite', 'jscFingerprint']);
+  var site = JSC.normalizeSite(saved.jscSite);
+  if (!site) throw new Error('no-site');
+
+  var now = new Date();
+  var today = localDate(now);
+  var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
+  // Jira and Google are both read before anything is changed.
+  var jira = await readJira(site);
+  var byHand = (await listTagged('primary', 'jscManual=1', todayStart))
+    .map(function (e) { return e.key; }).filter(function (k) { return !!k; });
+  var fingerprint = planFingerprint(jira, byHand, today);
+  if (options.onlyIfChanged && fingerprint === saved.jscFingerprint) return { ok: true, changed: false };
+
+  var settings = Object.assign({}, DEFAULTS, { site: site });
+  var plan = buildFullPlan(withoutTickets(jira, byHand), today, settings, []);
+  var calendarId = await ensurePlanCalendar();
+  var events = '/calendars/' + encodeURIComponent(calendarId) + '/events';
+  var diff = diffPlan(await listTagged(calendarId, 'jsc=1', todayStart), plan, today);
+
+  for (var i = 0; i < diff.trim.length; i++) {
+    await gcal('PATCH', events + '/' + encodeURIComponent(diff.trim[i].id), { end: { date: diff.trim[i].end } });
+  }
+  for (var j = 0; j < diff.remove.length; j++) {
+    await gcal('DELETE', events + '/' + encodeURIComponent(diff.remove[j].id));
+  }
+  for (var k = 0; k < diff.create.length; k++) {
+    await gcal('POST', events, allDayEventBody(diff.create[k]));
+  }
+  await chrome.storage.local.set({ jscFingerprint: fingerprint });
+
+  var upcoming = plan.filter(function (item) { return item.future; }).length;
+  return {
+    ok: true, changed: diff.create.length + diff.remove.length + diff.trim.length > 0,
+    planned: plan.length - upcoming, upcoming: upcoming, byHand: byHand.length
+  };
+}
+
+/** Puts a dropped ticket straight onto the person's own calendar. */
+async function createManualEvent(message) {
+  var ticket = message.ticket || {};
+  if (!ticket.key || !/^\d{4}-\d{2}-\d{2}$/.test(String(message.date))) throw new Error('bad-request');
+  var timed = message.startMin !== null && message.startMin !== undefined;
+  if (timed && !/^[+-]\d{2}:\d{2}$/.test(String(message.offset))) throw new Error('bad-request');
+  await gcal('POST', '/calendars/primary/events',
+    timedEventBody(ticket, message.date, timed ? Number(message.startMin) : null, message.offset));
+  return { ok: true };
+}
+
+/** Turns an internal error into a sentence for the panel. */
+function explain(error) {
+  var text = String(error && error.message || error);
+  if (text === 'jira-signin') return 'You are not signed in to Jira in this browser.';
+  if (text === 'google-signin') return 'Connect Google Calendar first.';
+  if (text === 'no-site') return 'Enter your Jira address first.';
+  if (/^google-403/.test(text)) return 'Google refused the request. Disconnect and connect Google Calendar again.';
+  if (/^jira-/.test(text)) return 'Jira could not be read (' + text.slice(5) + '). Try again in a minute.';
+  if (/^google-/.test(text)) return 'Google Calendar could not be updated (' + text.slice(7, 10) + ').';
+  return 'Something went wrong: ' + text.slice(0, 120);
+}

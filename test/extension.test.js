@@ -84,3 +84,20 @@ test('formatSlot describes where a ticket will land', () => {
   assert.equal(JSC.formatSlot('2026-11-16', 600), 'Mon 16 Nov, 10:00');
   assert.equal(JSC.formatSlot('2026-11-16', null), 'Mon 16 Nov, all day');
 });
+
+test('eventEditUrl: an all-day bar across several days', () => {
+  const url = JSC.eventEditUrl('/calendar/u/0', { title: 'T', details: '', date: '2026-11-16', endDate: '2026-11-19', startMin: null });
+  assert.equal(new URL('https://calendar.google.com' + url).searchParams.get('dates'), '20261116/20261119');
+});
+
+test('statusKind sorts Jira statuses into four colours', () => {
+  const k = (status, category) => JSC.statusKind({ status, category });
+  assert.equal(k('In Progress', 'indeterminate'), 'doing');
+  assert.equal(k('Ready to QA', 'indeterminate'), 'review');
+  assert.equal(k('In Review', 'indeterminate'), 'review');
+  assert.equal(k('Blocked', 'indeterminate'), 'review');
+  assert.equal(k('Backlog', 'new'), 'todo');
+  assert.equal(k('Selected for Development', 'new'), 'todo');
+  assert.equal(k('Done', 'done'), 'done');
+  assert.equal(k('', undefined), 'todo');
+});

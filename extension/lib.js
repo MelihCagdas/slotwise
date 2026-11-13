@@ -49,12 +49,14 @@ var JSC = (function () {
   /**
    * The address of Google Calendar's own "new event" page, filled in.
    * `event` is {title, details, date, startMin, durationMin}; startMin null
-   * means an all-day event. Times are the calendar's local time.
+   * means an all-day event (optionally with `endDate`, the day after the
+   * last day). Times are the calendar's local time.
    */
   function eventEditUrl(basePath, event) {
     var dates;
     if (event.startMin === null || event.startMin === undefined) {
-      dates = event.date.replace(/-/g, '') + '/' + addDays(event.date, 1).replace(/-/g, '');
+      // All day. `endDate` is the day after the last day, for a bar across several days.
+      dates = event.date.replace(/-/g, '') + '/' + (event.endDate || addDays(event.date, 1)).replace(/-/g, '');
     } else {
       dates = stamp(event.date, event.startMin) + '/' +
         stamp(event.date, event.startMin + (event.durationMin || 60));
@@ -121,7 +123,33 @@ var JSC = (function () {
     return day + ', ' + pad(Math.floor(minutes / 60)) + ':' + pad(minutes % 60);
   }
 
+  /**
+   * Google Calendar shows its time zone beside the grid as 'GMT+3' or
+   * 'GMT+05:30'. Returns '+03:00' / '+05:30', or null if it is not such a label.
+   */
+  function gmtOffset(label) {
+    var m = /^GMT(?:([+-])(\d{1,2})(?::?(\d{2}))?)?$/.exec(String(label || '').trim());
+    if (!m) return null;
+    if (!m[1]) return '+00:00';
+    return m[1] + pad(Number(m[2])) + ':' + (m[3] || '00');
+  }
+
+  /**
+   * Which colour a ticket gets in the list: 'doing' (being worked on),
+   * 'review' (started but waiting, such as QA or review), 'done' or 'todo'.
+   */
+  function statusKind(ticket) {
+    var name = String(ticket.status || '').toLowerCase();
+    if (ticket.category === 'done') return 'done';
+    if (ticket.category === 'indeterminate') {
+      return /review|qa|test|verif|approv|wait|block|hold/.test(name) ? 'review' : 'doing';
+    }
+    return 'todo';
+  }
+
   return {
+    statusKind: statusKind,
+    gmtOffset: gmtOffset,
     dateFromKey: dateFromKey,
     minutesFromOffset: minutesFromOffset,
     eventEditUrl: eventEditUrl,
