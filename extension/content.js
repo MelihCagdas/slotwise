@@ -2,8 +2,8 @@
  * Jira Sprint Calendar, the panel inside Google Calendar.
  *
  * The panel is the pool: your Jira tickets, coloured by status. Drag one
- * onto a day or an hour, or press "Plan my sprint" to spread the tickets that
- * are still in the pool across the sprint. Either way they become ordinary
+ * onto a day or an hour, or press "Auto-plan my tickets" to spread the tickets
+ * that are still in the pool across the coming days. Either way they become ordinary
  * calendar events.
  *
  * Events are created through Google Calendar's own new-event page, or
@@ -36,6 +36,7 @@
     sprint: [], other: [], found: null, query: '',
     placed: {},                                   // ticket key -> true, for tickets on the calendar
     google: { registered: false, connected: false, auto: false },
+    settings: JSC.cleanSettings(null), customising: false,
     dragging: null, busy: false
   };
   var ui = {};
@@ -63,7 +64,7 @@
   }
 
   // ---- Placing through Google's own new-event page --------------------------
-  // A drop, or "Plan my sprint", becomes a queue of events. For each one the
+  // A drop, or "Auto-plan my tickets", becomes a queue of events. For each one the
   // watcher opens Google's new-event page filled in, presses Save, and moves
   // on; at the end it returns to the view the person was in. Progress is kept
   // in sessionStorage, so it carries on whether Google swaps the page in
@@ -78,7 +79,7 @@
   function editorUrl(p, item) {
     return JSC.eventEditUrl(p.base, {
       title: item.title, details: item.details, date: item.date,
-      startMin: item.startMin, durationMin: 60, endDate: item.endDate
+      startMin: item.startMin, durationMin: item.minutes || 60, endDate: item.endDate
     });
   }
 
@@ -228,14 +229,15 @@
 
     var viaPage = function () {
       startQueue([{ key: ticket.key, title: JSC.ticketTitle(ticket), details: ticket.url,
-        date: slot.date, startMin: slot.startMin }]);
+        date: slot.date, startMin: slot.startMin, minutes: state.settings.dropMinutes }]);
     };
     var offset = slot.startMin === null ? null : calendarOffset();
     if (!state.google.connected || (slot.startMin !== null && !offset)) { viaPage(); return; }
 
     // Google Calendar is connected: create the event directly.
     setNote('Adding ' + ticket.key + '…');
-    send({ type: 'jsc-create', ticket: ticket, date: slot.date, startMin: slot.startMin, offset: offset })
+    send({ type: 'jsc-create', ticket: ticket, date: slot.date, startMin: slot.startMin, offset: offset,
+      minutes: state.settings.dropMinutes })
       .then(function (res) {
         if (!res || !res.ok) { viaPage(); return; }
         markPlaced(ticket.key);
@@ -317,18 +319,18 @@
     }, 350);
   }
 
-  // ---- Plan my sprint -------------------------------------------------------
+  // ---- Auto-plan my tickets -------------------------------------------------
 
   function planSprint() {
     if (state.busy) return;
     state.busy = true;
-    setNote('Reading your sprint…');
+    setNote('Reading your tickets…');
     render();
     var done = function (text, isProblem) { state.busy = false; setNote(text, isProblem); render(); };
 
     if (state.google.connected) {
       send({ type: 'jsc-plan' }).then(function (res) {
-        if (!res || !res.ok) { done((res && res.message) || 'The sprint could not be planned.', true); return; }
+        if (!res || !res.ok) { done((res && res.message) || 'Your tickets could not be planned.', true); return; }
         done('Planned ' + res.planned + ' ticket' + (res.planned === 1 ? '' : 's') +
           (res.upcoming ? ' and ' + res.upcoming + ' in coming sprints' : '') +
           (res.byHand ? '. ' + res.byHand + ' you placed yourself stayed put' : '') + '.');
@@ -341,8 +343,8 @@
     // Not connected: place the tickets still in the pool, one after another,
     // through Google's own new-event page.
     send({ type: 'jsc-plan-preview', skip: Object.keys(state.placed) }).then(function (res) {
-      if (!res || !res.ok) { done((res && res.message) || 'The sprint could not be read.', true); return; }
-      if (!res.items.length) { done('Every sprint ticket is already on your calendar.'); return; }
+      if (!res || !res.ok) { done((res && res.message) || 'Your tickets could not be read.', true); return; }
+      if (!res.items.length) { done('Every ticket is already on your calendar.'); return; }
       startQueue(res.items.map(function (item) {
         return { key: item.key, title: item.title, details: item.description,
           date: item.startDate, endDate: item.endDate, startMin: null };
@@ -423,6 +425,7 @@
     ui.main.hidden = !state.site;
     if (!state.site) return;
 
+    fillCustomise();
     ui.site.textContent = state.site === JSC.DEMO_SITE ? 'Sample tickets' : state.site.replace('https://', '');
     ui.lists.textContent = '';
     var sprint = JSC.filterTickets(state.sprint, state.query);
@@ -434,18 +437,27 @@
     ui.empty.hidden = !nothing || !ui.status.hidden;
     ui.empty.textContent = state.query.trim() ? 'No ticket matches.' : 'No open tickets assigned to you.';
 
-    // Plan my sprint
+    // Customise
+    ui.custom.hidden = !state.customising;
+    ui.lists.hidden = state.customising;
+    ui.search.hidden = state.customising;
+    ui.legend.hidden = state.customising;
+    if (state.customising) ui.empty.hidden = true;
+    ui.customise.textContent = state.customising ? 'Done' : 'Customise';
+
+    // Auto-plan my tickets
     var pending = readPending();
     var placing = pending && pending.queue && pending.queue.length > 1;
     ui.plan.disabled = state.busy || !!placing;
     ui.plan.textContent = placing
       ? 'Placing ' + (pending.index + 1) + ' of ' + pending.queue.length + '…'
-      : state.busy ? 'Planning…' : 'Plan my sprint';
-    var inPool = state.sprint.filter(function (t) { return !state.placed[t.key]; }).length;
-    ui.planHelp.textContent = state.sprint.length
-      ? (inPool ? inPool + ' sprint ticket' + (inPool === 1 ? ' is' : 's are') + ' not on your calendar yet.'
-        : 'Every sprint ticket is on your calendar.')
-      : 'Spreads your sprint tickets across the days of the sprint.';
+      : state.busy ? 'Planning…' : 'Auto-plan my tickets';
+    var pool = state.settings.scope === 'all' || !state.sprint.length ? state.sprint.concat(state.other) : state.sprint;
+    var inPool = pool.filter(function (t) { return !state.placed[t.key]; }).length;
+    ui.planHelp.textContent = pool.length
+      ? (inPool ? inPool + ' ticket' + (inPool === 1 ? ' is' : 's are') + ' not on your calendar yet.'
+        : 'Every ticket is on your calendar.')
+      : 'Spreads your tickets across the coming working days.';
 
     // Google Calendar connection
     ui.connect.hidden = !state.google.registered || state.google.connected;
@@ -454,6 +466,90 @@
     ui.saveRow.hidden = state.google.connected; // drops are instant once connected
     ui.auto.checked = state.autoSave;
     ui.forget.hidden = state.google.connected || !Object.keys(state.placed).length;
+  }
+
+  // ---- Customise ------------------------------------------------------------
+
+  function saveSettings(change) {
+    state.settings = JSC.cleanSettings(Object.assign({}, state.settings, change));
+    api.set({ jscSettings: state.settings });
+    render();
+  }
+
+  function field(labelText, control, help) {
+    var wrap = el('div', 'jsc-field');
+    var label = el('label', 'jsc-label', labelText);
+    if (control.id) label.htmlFor = control.id;
+    wrap.appendChild(label);
+    wrap.appendChild(control);
+    if (help) wrap.appendChild(el('div', 'jsc-help', help));
+    return wrap;
+  }
+
+  function select(id, options, onChange) {
+    var s = el('select', 'jsc-input'); s.id = id;
+    options.forEach(function (o) {
+      var opt = el('option', '', o[1]); opt.value = o[0];
+      s.appendChild(opt);
+    });
+    s.addEventListener('change', function () { onChange(s.value); });
+    return s;
+  }
+
+  function buildCustomise() {
+    var box = el('div', 'jsc-custom'); box.hidden = true;
+    box.appendChild(el('div', 'jsc-heading', 'Customise'));
+
+    ui.setScope = select('jsc-scope', [['sprint', 'My current sprint'], ['all', 'All my open tickets']],
+      function (v) { saveSettings({ scope: v }); loadPlaced().then(render); });
+    box.appendChild(field('Auto-plan uses', ui.setScope));
+
+    var days = el('div', 'jsc-days'); days.id = 'jsc-days';
+    ui.setDays = [];
+    [[1, 'M'], [2, 'T'], [3, 'W'], [4, 'T'], [5, 'F'], [6, 'S'], [0, 'S']].forEach(function (d) {
+      var b = button('jsc-day', d[1], function () {
+        var on = state.settings.workingDays.indexOf(d[0]) !== -1;
+        var next = state.settings.workingDays.filter(function (x) { return x !== d[0]; });
+        if (!on) next.push(d[0]);
+        if (next.length) saveSettings({ workingDays: next });
+      });
+      b.title = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d[0]];
+      ui.setDays.push([d[0], b]);
+      days.appendChild(b);
+    });
+    box.appendChild(field('Working days', days));
+
+    ui.setFirst = el('input', 'jsc-input'); ui.setFirst.id = 'jsc-first';
+    ui.setFirst.addEventListener('change', function () { saveSettings({ activeStatuses: ui.setFirst.value }); });
+    box.appendChild(field('Statuses that go first', ui.setFirst, 'Separate several with commas.'));
+
+    ui.setSkip = el('input', 'jsc-input'); ui.setSkip.id = 'jsc-skip'; ui.setSkip.placeholder = 'For example: Ready for QA';
+    ui.setSkip.addEventListener('change', function () { saveSettings({ skipStatuses: ui.setSkip.value }); });
+    box.appendChild(field('Statuses to leave out', ui.setSkip));
+
+    ui.setSpread = el('input', 'jsc-input'); ui.setSpread.id = 'jsc-spread';
+    ui.setSpread.type = 'number'; ui.setSpread.min = '1'; ui.setSpread.max = '60';
+    ui.setSpread.addEventListener('change', function () { saveSettings({ fallbackDays: ui.setSpread.value }); });
+    box.appendChild(field('With no sprint, spread over', ui.setSpread, 'Working days.'));
+
+    ui.setDrop = select('jsc-drop', [[30, '30 minutes'], [60, '1 hour'], [90, '1.5 hours'], [120, '2 hours']],
+      function (v) { saveSettings({ dropMinutes: v }); });
+    box.appendChild(field('A dropped ticket lasts', ui.setDrop));
+    return box;
+  }
+
+  function fillCustomise() {
+    var s = state.settings;
+    ui.setScope.value = s.scope;
+    ui.setDays.forEach(function (pair) {
+      var on = s.workingDays.indexOf(pair[0]) !== -1;
+      pair[1].classList.toggle('jsc-on', on);
+      pair[1].setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    if (document.activeElement !== ui.setFirst) ui.setFirst.value = s.activeStatuses.join(', ');
+    if (document.activeElement !== ui.setSkip) ui.setSkip.value = s.skipStatuses.join(', ');
+    if (document.activeElement !== ui.setSpread) ui.setSpread.value = s.fallbackDays;
+    ui.setDrop.value = String(s.dropMinutes);
   }
 
   function build() {
@@ -515,7 +611,7 @@
     ui.empty = el('div', 'jsc-status'); ui.empty.hidden = true;
     ui.main.appendChild(ui.empty);
 
-    var legend = el('div', 'jsc-legend');
+    var legend = ui.legend = el('div', 'jsc-legend');
     [['todo', 'To do'], ['doing', 'In progress'], ['review', 'In review']].forEach(function (pair) {
       var item = el('span', 'jsc-legend-item jsc-' + pair[0]);
       item.appendChild(el('span', 'jsc-dot'));
@@ -523,9 +619,11 @@
       legend.appendChild(item);
     });
     ui.main.appendChild(legend);
+    ui.custom = buildCustomise();
+    ui.main.appendChild(ui.custom);
 
     var foot = el('div', 'jsc-foot');
-    ui.plan = button('jsc-button', 'Plan my sprint', planSprint);
+    ui.plan = button('jsc-button', 'Auto-plan my tickets', planSprint);
     foot.appendChild(ui.plan);
     ui.planHelp = el('div', 'jsc-help');
     foot.appendChild(ui.planHelp);
@@ -565,6 +663,11 @@
     var row = el('div', 'jsc-foot-row');
     ui.site = el('span', 'jsc-site');
     row.appendChild(ui.site);
+    ui.customise = button('jsc-text-button', 'Customise', function () {
+      state.customising = !state.customising;
+      render();
+    });
+    row.appendChild(ui.customise);
     row.appendChild(button('jsc-text-button', 'Refresh', loadTickets));
     row.appendChild(button('jsc-text-button', 'Change', function () {
       state.site = null; state.sprint = []; state.other = [];
@@ -594,8 +697,10 @@
     build();
     watchPending();
     setInterval(watchPending, 300);
-    Promise.resolve(api.get(['jscSite', 'jscOpen', 'jscAutoSave'])).then(function (saved) {
+    Promise.resolve(api.get(['jscSite', 'jscOpen', 'jscAutoSave', 'jscSettings'])).then(function (saved) {
       saved = saved || {};
+      state.settings = JSC.cleanSettings(saved.jscSettings);
+      fillCustomise();
       state.site = JSC.normalizeSite(saved.jscSite) || null;
       state.open = saved.jscOpen !== false;
       state.autoSave = saved.jscAutoSave !== false;

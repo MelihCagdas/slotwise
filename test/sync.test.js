@@ -165,3 +165,8 @@ test('normalizeSite accepts "demo" for the sample tickets', () => {
   assert.equal(JSC.linkBase('demo'), 'https://example.atlassian.net');
   assert.equal(JSC.linkBase('https://x.atlassian.net'), 'https://x.atlassian.net');
 });
+
+test('timedEventBody: the length of a dropped ticket can be chosen', () => {
+  const b = timedEventBody({ key: 'A', summary: 's', url: 'u' }, '2026-11-16', 600, '+03:00', 90);
+  assert.deepEqual(b.end, { dateTime: '2026-11-16T11:30:00+03:00' });
+});

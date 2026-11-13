@@ -33,9 +33,26 @@ The extension adds a **Jira tickets** panel to Google Calendar in your browser.
 - **Search.** Type to filter your own tickets. Three letters or more also searches the rest of Jira, and a ticket number such as `APP-12` finds that ticket.
 - **Drag onto the calendar.** Drop on an hour in week or day view for a one-hour event at that time. Drop on the strip under the date, or on a day in month view, for an all-day event.
 - **Colours by status.** Grey for to do, blue for in progress, amber for in review or QA.
-- **Plan my sprint.** One button spreads the sprint tickets that are still in the panel across the remaining days of the sprint: work in progress first, then board order, sized by story points. Tickets you already placed are left alone and get a tick in the panel.
+- **Auto-plan my tickets.** One button spreads the tickets that are still in the panel across the remaining days of the sprint (or the coming working days, if you do not use sprints): work in progress first, then board order, sized by story points. Tickets you already placed are left alone and get a tick in the panel.
 - **It is a normal event.** The title is the ticket number and name, and the description links to the ticket. Move it, stretch it across hours or days, change its colour, invite people. It shows as busy, so anyone booking you sees the time is taken.
 - **No token.** It uses the Jira sign-in your browser already has.
+
+### Customise
+
+The **Customise** link at the bottom of the panel sets:
+
+| Setting | Default | What it does |
+|---|---|---|
+| Auto-plan uses | My current sprint | Or all your open tickets, for teams that do not work in sprints. |
+| Working days | Monday to Friday | The days tickets are spread across. |
+| Statuses that go first | In Progress | Tickets in these statuses are placed first. |
+| Statuses to leave out | none | Tickets in these statuses are not auto-planned, for example a QA status. |
+| With no sprint, spread over | 10 working days | How far ahead to plan when there is no sprint. |
+| A dropped ticket lasts | 1 hour | 30 minutes, 1 hour, 1.5 hours or 2 hours. |
+
+### Try it without Jira
+
+Type `demo` as the Jira address to load sample tickets. Everything else works as normal, so you can see it before connecting your own Jira.
 
 ### Install the extension
 
@@ -53,7 +70,7 @@ Make sure you are signed in to Jira in the same browser.
 
 The extension opens Google Calendar's own new-event page with the ticket filled in, saves it, and returns you to the week you were looking at. This takes a few seconds. Untick **Save a dropped ticket straight away** in the panel if you would rather check each event before it is saved.
 
-**Plan my sprint** does the same for each ticket in turn, about ten seconds a ticket. Do not type in the Calendar tab while it runs: Google Calendar treats single keys as shortcuts and will interrupt it. Pressing the button again later places only tickets that are not on the calendar yet.
+**Auto-plan my tickets** does the same for each ticket in turn, about ten seconds a ticket. Do not type in the Calendar tab while it runs: Google Calendar treats single keys as shortcuts and will interrupt it. Pressing the button again later places only tickets that are not on the calendar yet.
 
 The extension asks for two permissions: to run on `calendar.google.com`, and to read from `atlassian.net`. It only reads Jira. It sends nothing anywhere else.
 

@@ -186,3 +186,22 @@
 @media (prefers-reduced-motion: reduce) {
   #jsc-root { transition: none; }
 }
+
+/* Customise */
+#jsc-root .jsc-custom { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+#jsc-root .jsc-field { display: flex; flex-direction: column; gap: 4px; }
+#jsc-root .jsc-field .jsc-label { font-size: 12px; }
+#jsc-root select.jsc-input { appearance: auto; padding: 6px 8px; }
+#jsc-root .jsc-days { display: flex; gap: 4px; }
+#jsc-root .jsc-day {
+  flex: 1;
+  padding: 6px 0;
+  border: 1px solid var(--jsc-line);
+  border-radius: 8px;
+  background: var(--jsc-bg);
+  color: var(--jsc-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+#jsc-root .jsc-day.jsc-on { background: var(--jsc-accent); border-color: var(--jsc-accent); color: var(--jsc-bg); }

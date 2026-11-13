@@ -283,10 +283,10 @@ const Product = () => {
               display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: planning ? 0.75 : 1,
               transform: `scale(${f >= T.click && f < T.click + 8 ? 0.95 : 1})`,
               boxShadow: f >= T.planMove && f < T.click ? `0 0 0 ${5 * appear(f, T.planMove + 20, 14)}px ${C.blueSoft}` : 'none'}}>
-              {planning ? `Placing ${Math.min(5, barsDone + 1)} of 5…` : 'Plan my sprint'}
+              {planning ? `Placing ${Math.min(5, barsDone + 1)} of 5…` : 'Auto-plan my tickets'}
             </div>
             <div style={{fontSize: 13.5, color: C.muted, marginTop: 8, textAlign: 'center'}}>
-              {inPool > 0 ? `${inPool} sprint ticket${inPool === 1 ? ' is' : 's are'} not on your calendar yet.` : 'Every sprint ticket is on your calendar.'}
+              {inPool > 0 ? `${inPool} ticket${inPool === 1 ? ' is' : 's are'} not on your calendar yet.` : 'Every ticket is on your calendar.'}
             </div>
           </div>
         </div>
@@ -330,7 +330,7 @@ const Product = () => {
         sub="Drop on an hour for a timed event, or on a day for an all-day one." />
       <Caption f={f} at={T.edgeMove + 6} until={T.planMove} title="Stretch it to the time it needs"
         sub="It is an ordinary event: move it, invite people. It shows as busy to anyone booking you." />
-      <Caption f={f} at={T.planMove + 6} until={RULES[0].at} title="Or press Plan my sprint"
+      <Caption f={f} at={T.planMove + 6} until={RULES[0].at} title="Or press Auto-plan"
         sub="Whatever is still in the panel is spread across the sprint for you." />
       <Caption f={f} at={T.month - 30} until={T.end} title="Week view or month view"
         sub="It is your own calendar, so your sprint is on every device you use." />
@@ -432,7 +432,7 @@ const Why = () => {
 
 const Start = () => {
   const f = useCurrentFrame();
-  const steps = ['Load the extension from GitHub', 'Enter your Jira address', 'Drag a ticket, or press Plan my sprint'];
+  const steps = ['Load the extension from GitHub', 'Enter your Jira address', 'Drag a ticket, or press Auto-plan'];
   return (
     <AbsoluteFill style={{...page, alignItems: 'center', justifyContent: 'center', textAlign: 'center'}}>
       <div style={{opacity: appear(f, 0, 12)}}><Mark size={84} /></div>

@@ -155,7 +155,37 @@ var JSC = (function () {
     return 'todo';
   }
 
+  var DROP_MINUTES = [30, 60, 90, 120];
+
+  function nameList(value) {
+    var parts = Array.isArray(value) ? value : String(value || '').split(',');
+    return parts.map(function (s) { return String(s).trim(); }).filter(function (s) { return s !== ''; });
+  }
+
+  /**
+   * The person's choices from the Customise panel, with anything missing or
+   * unusable replaced by the default.
+   */
+  function cleanSettings(raw) {
+    raw = raw || {};
+    var days = (Array.isArray(raw.workingDays) ? raw.workingDays : []).map(Number)
+      .filter(function (d, i, all) { return d % 1 === 0 && d >= 0 && d <= 6 && all.indexOf(d) === i; })
+      .sort(function (a, b) { return a - b; });
+    var spread = Number(raw.fallbackDays);
+    var first = nameList(raw.activeStatuses);
+    return {
+      scope: raw.scope === 'all' ? 'all' : 'sprint',
+      workingDays: days.length ? days : [1, 2, 3, 4, 5],
+      activeStatuses: first.length ? first : ['In Progress'],
+      skipStatuses: nameList(raw.skipStatuses),
+      fallbackDays: spread % 1 === 0 && spread >= 1 && spread <= 60 ? spread : 10,
+      dropMinutes: DROP_MINUTES.indexOf(Number(raw.dropMinutes)) !== -1 ? Number(raw.dropMinutes) : 60
+    };
+  }
+
   return {
+    DROP_MINUTES: DROP_MINUTES,
+    cleanSettings: cleanSettings,
     DEMO_SITE: DEMO_SITE,
     linkBase: linkBase,
     statusKind: statusKind,

@@ -32,10 +32,10 @@ function allDayEventBody(item) {
 
 /**
  * The event for a ticket dropped by hand. `startMin` null means all day;
- * otherwise a one-hour event at that time, `offset` being the calendar's
- * time zone such as '+03:00'.
+ * otherwise an event at that time lasting `minutes` (an hour by default),
+ * `offset` being the calendar's time zone such as '+03:00'.
  */
-function timedEventBody(ticket, date, startMin, offset) {
+function timedEventBody(ticket, date, startMin, offset, minutes) {
   var body = {
     summary: JSC.ticketTitle(ticket),
     description: ticket.url,
@@ -53,7 +53,7 @@ function timedEventBody(ticket, date, startMin, offset) {
     return day + 'T' + pad(Math.floor(m / 60)) + ':' + pad(m % 60) + ':00' + offset;
   };
   body.start = { dateTime: stamp(startMin) };
-  body.end = { dateTime: stamp(startMin + 60) };
+  body.end = { dateTime: stamp(startMin + (minutes || 60)) };
   return body;
 }
 
@@ -200,8 +200,11 @@ function jiraFetch(site, path) {
     });
 }
 
-/** Reads the open sprint, future sprints and their order. Same steps as the script. */
-async function readJira(site) {
+/**
+ * Reads the open sprint, future sprints and their order. Same steps as the
+ * script. With scope 'all' it reads every open ticket and ignores sprints.
+ */
+async function readJira(site, scope) {
   var get = async function (path, allowCodes) {
     var res = await jiraFetch(site, path);
     if (res.ok) return res.data;
@@ -233,7 +236,7 @@ async function readJira(site) {
   if (fieldIds.sprint) fields.push(fieldIds.sprint);
 
   var future = [];
-  if (fieldIds.sprint) {
+  if (fieldIds.sprint && scope !== 'all') {
     var upcoming = await search(FUTURE_JQL + ' ORDER BY Rank ASC', fields, null, [400]);
     future = parseFutureIssues(upcoming || [], fieldIds, null, toLocal);
     var boardId = future.length ? future[0].boardId : null;
@@ -259,6 +262,15 @@ async function readJira(site) {
   }
   var open = await search(OPEN_JQL + ' ORDER BY Rank ASC', fields, DEFAULTS.fallbackTickets);
   return { tickets: parseIssues(open, fieldIds, null, toLocal).tickets, sprintStart: null, sprintEnd: null, future: [] };
+}
+
+/** The planning rules, with the person's choices from the Customise panel. */
+async function planSettings(site) {
+  var chosen = JSC.cleanSettings((await chrome.storage.local.get('jscSettings')).jscSettings);
+  return Object.assign({}, DEFAULTS, {
+    site: JSC.linkBase(site), scope: chosen.scope, workingDays: chosen.workingDays,
+    activeStatuses: chosen.activeStatuses, skipStatuses: chosen.skipStatuses, fallbackDays: chosen.fallbackDays
+  });
 }
 
 /** True when this copy of the extension has been registered with Google. */
@@ -355,13 +367,13 @@ async function planSprint(options) {
   var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 
   // Jira and Google are both read before anything is changed.
-  var jira = await readJira(site);
+  var settings = await planSettings(site);
+  var jira = await readJira(site, settings.scope);
   var byHand = (await listTagged('primary', 'jscManual=1', todayStart))
     .map(function (e) { return e.key; }).filter(function (k) { return !!k; });
   var fingerprint = planFingerprint(jira, byHand, today);
   if (options.onlyIfChanged && fingerprint === saved.jscFingerprint) return { ok: true, changed: false };
 
-  var settings = Object.assign({}, DEFAULTS, { site: JSC.linkBase(site) });
   var plan = buildFullPlan(withoutTickets(jira, byHand), today, settings, []);
   var calendarId = await ensurePlanCalendar();
   var events = '/calendars/' + encodeURIComponent(calendarId) + '/events';
@@ -392,7 +404,8 @@ async function createManualEvent(message) {
   var timed = message.startMin !== null && message.startMin !== undefined;
   if (timed && !/^[+-]\d{2}:\d{2}$/.test(String(message.offset))) throw new Error('bad-request');
   await gcal('POST', '/calendars/primary/events',
-    timedEventBody(ticket, message.date, timed ? Number(message.startMin) : null, message.offset));
+    timedEventBody(ticket, message.date, timed ? Number(message.startMin) : null, message.offset,
+      JSC.cleanSettings({ dropMinutes: message.minutes }).dropMinutes));
   return { ok: true };
 }
 

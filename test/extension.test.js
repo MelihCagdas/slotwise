@@ -101,3 +101,20 @@ test('statusKind sorts Jira statuses into four colours', () => {
   assert.equal(k('Done', 'done'), 'done');
   assert.equal(k('', undefined), 'todo');
 });
+
+test('cleanSettings keeps good choices and replaces unusable ones with the defaults', () => {
+  assert.deepEqual(JSC.cleanSettings(null), {
+    scope: 'sprint', workingDays: [1, 2, 3, 4, 5], activeStatuses: ['In Progress'], skipStatuses: [],
+    fallbackDays: 10, dropMinutes: 60
+  });
+  const s = JSC.cleanSettings({ scope: 'all', workingDays: [6, 0, 1, 1, 9, 'x'], activeStatuses: ' Doing , In Dev ,',
+    skipStatuses: ['Ready for QA', ''], fallbackDays: '15', dropMinutes: '90' });
+  assert.equal(s.scope, 'all');
+  assert.deepEqual(s.workingDays, [0, 1, 6]);
+  assert.deepEqual(s.activeStatuses, ['Doing', 'In Dev']);
+  assert.deepEqual(s.skipStatuses, ['Ready for QA']);
+  assert.equal(s.fallbackDays, 15);
+  assert.equal(s.dropMinutes, 90);
+  const bad = JSC.cleanSettings({ scope: 'x', workingDays: [], activeStatuses: '', fallbackDays: 0, dropMinutes: 45 });
+  assert.deepEqual(bad, JSC.cleanSettings(null));
+});

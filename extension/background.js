@@ -49,8 +49,8 @@ var handlers = {
   'jsc-plan-preview': async function (message) {
     var site = JSC.normalizeSite((await chrome.storage.local.get('jscSite')).jscSite);
     if (!site) throw new Error('no-site');
-    var jira = withoutTickets(await readJira(site), message.skip || []);
-    var settings = Object.assign({}, DEFAULTS, { site: JSC.linkBase(site) });
+    var settings = await planSettings(site);
+    var jira = withoutTickets(await readJira(site, settings.scope), message.skip || []);
     return { ok: true, items: buildFullPlan(jira, localDate(new Date()), settings, []) };
   },
   // Which tickets already have an event from this extension, from today on.
