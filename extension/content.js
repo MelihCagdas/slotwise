@@ -119,7 +119,7 @@
     if (p.stage === 'opening') {
       // The new-event page is not up yet. Google sometimes drops a page change
       // made while it is busy with its own, so ask again a few times.
-      if (now - (p.lastTry || p.at) < 2500) return;
+      if (now - (p.lastTry || p.at) < 4000) return;
       if ((p.tries || 0) >= 4) { clearPending(); render(); return; }
       p.tries = (p.tries || 0) + 1; p.lastTry = now; writePending(p);
       location.assign(editorUrl(p, item));
