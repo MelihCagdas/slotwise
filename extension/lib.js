@@ -136,7 +136,8 @@ var JSC = (function () {
    * 'GMT+05:30'. Returns '+03:00' / '+05:30', or null if it is not such a label.
    */
   function gmtOffset(label) {
-    var m = /^GMT(?:([+-])(\d{1,2})(?::?(\d{2}))?)?$/.exec(String(label || '').trim());
+    // Some languages write the minus as a real minus sign, not a hyphen.
+    var m = /^GMT(?:([+-])(\d{1,2})(?::?(\d{2}))?)?$/.exec(String(label || '').trim().replace(/\u2212/g, '-'));
     if (!m) return null;
     if (!m[1]) return '+00:00';
     return m[1] + pad(Number(m[2])) + ':' + (m[3] || '00');

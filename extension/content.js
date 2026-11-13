@@ -19,16 +19,39 @@
   var OPEN_JQL = 'assignee = currentUser() AND statusCategory != Done ORDER BY Rank ASC';
 
   // The browser's extension services. A test page can supply its own.
+  // After the extension is updated or reloaded, a page that was already open
+  // keeps this panel but loses its link to the extension: every call throws.
+  // `safely` turns that into a quiet failure, and `alive` lets the panel say so.
+  function alive() {
+    try { return !!chrome.runtime.id; } catch (e) { return false; }
+  }
+  function safely(call, fallback) {
+    return function () {
+      var args = arguments;
+      return Promise.resolve().then(function () { return call.apply(null, args); })
+        .catch(function () { return fallback; });
+    };
+  }
   var api = window.__JSC_TEST_API__ || {
-    get: function (keys) { return chrome.storage.local.get(keys); },
-    set: function (values) { return chrome.storage.local.set(values); },
-    send: function (message) { return chrome.runtime.sendMessage(message); },
-    jira: function (site, path) {
+    get: safely(function (keys) { return chrome.storage.local.get(keys); }, {}),
+    set: safely(function (values) { return chrome.storage.local.set(values); }),
+    send: safely(function (message) { return chrome.runtime.sendMessage(message); }, null),
+    jira: safely(function (site, path) {
       return chrome.runtime.sendMessage({ type: 'jsc-jira', site: site, path: path });
-    }
+    }, null),
+    alive: alive
   };
   function send(message) {
     return api.send ? Promise.resolve(api.send(message)).catch(function () { return null; }) : Promise.resolve(null);
+  }
+  /** True, with a message in the panel, when this page has lost the extension. */
+  function lostExtension() {
+    if (!api.alive || api.alive()) return false;
+    state.sprint = []; state.other = []; state.found = null; state.busy = false;
+    setStatus('Slotwise was updated. Reload this page to carry on.', true);
+    ui.signin.hidden = true;
+    render();
+    return true;
   }
 
   var state = {
@@ -76,6 +99,8 @@
   function writePending(p) { sessionStorage.setItem(PENDING_KEY, JSON.stringify(p)); }
   function clearPending() { sessionStorage.removeItem(PENDING_KEY); }
 
+  function squash(text) { return String(text || '').replace(/\s+/g, ' ').trim(); }
+
   function editorUrl(p, item) {
     return JSC.eventEditUrl(p.base, {
       title: item.title, details: item.details, date: item.date,
@@ -93,6 +118,21 @@
     location.assign(editorUrl(p, items[0]));
   }
 
+  var pressedHere = false; // Save was pressed by this copy of the page
+
+  /** Opens the next ticket in the queue, or starts the way back to their view. */
+  function advance(p, now) {
+    pressedHere = false;
+    if (!p.stopped && p.index + 1 < p.queue.length) {
+      p.index++; p.stage = 'opening'; p.at = now; p.pressed = false; p.saved = false; p.pressedAt = 0;
+      p.tries = 0; p.lastTry = now;
+      writePending(p);
+      location.assign(editorUrl(p, p.queue[p.index]));
+      return;
+    }
+    p.stage = 'returning'; p.tries = 0; p.lastTry = 0; writePending(p);
+  }
+
   function watchPending() {
     var p = readPending();
     if (!p || !p.queue || !p.queue.length) { if (p) clearPending(); return; }
@@ -100,19 +140,48 @@
     if (now - p.at > 600000) { clearPending(); return; }
     var item = p.queue[p.index];
 
-    if (location.pathname.indexOf('/eventedit') !== -1) {
+    if (location.pathname.indexOf('/eventedit') !== -1 && p.stage !== 'returning') {
+      if (p.stage === 'editing' && p.auto && p.pressed && !p.stopped && !pressedHere) {
+        // Save was pressed, then the page was loaded again (a reload at just
+        // that moment). The event is saved: move on rather than save it twice.
+        markPlaced(item.key);
+        advance(p, now);
+        return;
+      }
       if (p.stage !== 'editing') { p.stage = 'editing'; p.editAt = now; writePending(p); }
+      var save = document.getElementById('xSaveBu');
+      if (save && !save.__jscWatched) {
+        // When the person presses Save themselves, the ticket counts as placed too.
+        save.__jscWatched = true;
+        save.addEventListener('click', function () {
+          var q = readPending();
+          if (q) { q.saved = true; writePending(q); }
+        });
+      }
       if (p.auto && !p.pressed) {
-        var save = document.getElementById('xSaveBu');
-        var title = document.querySelector('input[aria-label="Title"], input[aria-label*="itle"]');
-        // Only press Save on the page this extension filled in.
-        if (save && title && title.value === item.title) {
-          p.pressed = true; p.saved = true; writePending(p);
+        // Only press Save on the page this extension filled in: one whose title
+        // box holds this ticket. The box is found by what it holds, not by its
+        // label, because the label is in the person's own language.
+        var want = squash(item.title);
+        var filled = [].some.call(document.querySelectorAll('input'), function (box) {
+          return squash(box.value) === want;
+        });
+        if (save && filled) {
+          p.pressed = true; p.saved = true; p.pressedAt = now; writePending(p);
+          pressedHere = true;
           save.click();
         } else if (now - p.editAt > 8000) {
           // Not found: leave this one for the person to save, and stop the queue.
           p.pressed = true; p.stopped = true; writePending(p);
         }
+      }
+      if (p.pressedAt && !p.stopped && now - p.pressedAt > 15000) {
+        // Save was pressed but Google is still on this page: hand it to the person.
+        p.stopped = true; p.saved = false; writePending(p);
+      }
+      if ((!p.auto || p.stopped) && !p.told && save) {
+        p.told = true; writePending(p);
+        setNote('Check the event, then press Save to add ' + item.key + '.');
       }
       return;
     }
@@ -129,19 +198,13 @@
     if (p.stage === 'editing') {
       // The new-event page has been left: this one is saved, or was closed.
       if (p.saved) markPlaced(item.key);
-      p.stage = 'leaving'; p.leftAt = now; writePending(p);
+      setNote('');
+      p.stage = 'leaving'; p.leftAt = now; p.told = false; writePending(p);
       return;
     }
     if (p.stage === 'leaving') {
       if (now - p.leftAt < 1500) return; // let Google finish its own move first
-      if (!p.stopped && p.index + 1 < p.queue.length) {
-        p.index++; p.stage = 'opening'; p.at = now; p.pressed = false; p.saved = false;
-        p.tries = 0; p.lastTry = now;
-        writePending(p);
-        location.assign(editorUrl(p, p.queue[p.index]));
-        return;
-      }
-      p.stage = 'returning'; p.tries = 0; p.lastTry = 0; writePending(p);
+      advance(p, now);
       return;
     }
     // Returning: Google shows today after a save. Go back to the view they were in.
@@ -269,21 +332,32 @@
     var path = '/rest/api/3/search/jql?maxResults=' + (max || 50) +
       '&fields=summary,status&jql=' + encodeURIComponent(jql);
     return api.jira(state.site, path).then(function (res) {
-      return res && res.ok ? JSC.parseTickets(res.data, JSC.linkBase(state.site)) : null;
+      if (res && res.ok) return JSC.parseTickets(res.data, JSC.linkBase(state.site));
+      // 400 means Jira did not understand the question (a site with no sprints).
+      if (res && res.status === 400) return null;
+      throw new Error(String((res && res.status) || 0));
     });
   }
 
+  function jiraProblem(status) {
+    if (status === 401 || status === 403) return 'You are not signed in to Jira in this browser.';
+    if (status === 429) return 'Jira is busy. Wait a minute, then press Refresh.';
+    if (status >= 500) return 'Jira has a problem right now (' + status + '). Press Refresh in a minute.';
+    if (status === 404) return 'Jira was not found at this address. Press Change to correct it.';
+    return 'Could not reach Jira. Check the address and your connection.';
+  }
+
   function loadTickets() {
+    if (lostExtension()) return Promise.resolve();
     setStatus('Loading your tickets…');
+    var failed = function (status) {
+      if (lostExtension()) return;
+      state.sprint = []; state.other = [];
+      setStatus(jiraProblem(status), true);
+      render();
+    };
     return api.jira(state.site, '/rest/api/3/myself').then(function (me) {
-      if (!me || !me.ok) {
-        state.sprint = []; state.other = [];
-        render();
-        setStatus(me && (me.status === 401 || me.status === 403)
-          ? 'You are not signed in to Jira in this browser.'
-          : 'Could not reach Jira. Check the address.', true);
-        return;
-      }
+      if (!me || !me.ok) { failed(me ? me.status : 0); return; }
       return Promise.all([search(SPRINT_JQL), search(OTHER_JQL), loadPlaced()]).then(function (lists) {
         if (lists[0] === null) {
           // This Jira has no sprints: show all open tickets in one list.
@@ -295,8 +369,8 @@
         setStatus('');
         render();
       });
-    }).catch(function () {
-      setStatus('Could not reach Jira. Reload the page and try again.', true);
+    }).catch(function (error) {
+      failed(Number(error && error.message) || 0);
     });
   }
 
@@ -315,14 +389,22 @@
         state.sprint.concat(state.other).forEach(function (t) { mine[t.key] = true; });
         state.found = (found || []).filter(function (t) { return !mine[t.key]; });
         render();
-      });
+      }).catch(function () { /* a search Jira could not answer finds nothing */ });
     }, 350);
   }
 
   // ---- Auto-plan my tickets -------------------------------------------------
 
   function planSprint() {
-    if (state.busy) return;
+    var running = readPending();
+    if (running && running.queue && running.queue.length > 1) {
+      // Pressed while placing: stop. What is already on the calendar stays.
+      clearPending();
+      setNote('Stopped. The tickets already placed stay on your calendar.');
+      render();
+      return;
+    }
+    if (state.busy || lostExtension()) return;
     state.busy = true;
     setNote('Reading your tickets…');
     render();
@@ -448,9 +530,9 @@
     // Auto-plan my tickets
     var pending = readPending();
     var placing = pending && pending.queue && pending.queue.length > 1;
-    ui.plan.disabled = state.busy || !!placing;
+    ui.plan.disabled = state.busy;
     ui.plan.textContent = placing
-      ? 'Placing ' + (pending.index + 1) + ' of ' + pending.queue.length + '…'
+      ? 'Placing ' + (pending.index + 1) + ' of ' + pending.queue.length + ' · Stop'
       : state.busy ? 'Planning…' : 'Auto-plan my tickets';
     var pool = state.settings.scope === 'all' || !state.sprint.length ? state.sprint.concat(state.other) : state.sprint;
     var inPool = pool.filter(function (t) { return !state.placed[t.key]; }).length;

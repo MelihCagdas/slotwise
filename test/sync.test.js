@@ -170,3 +170,31 @@ test('timedEventBody: the length of a dropped ticket can be chosen', () => {
   const b = timedEventBody({ key: 'A', summary: 's', url: 'u' }, '2026-11-16', 600, '+03:00', 90);
   assert.deepEqual(b.end, { dateTime: '2026-11-16T11:30:00+03:00' });
 });
+
+test('gmtOffset accepts the real minus sign some languages use', () => {
+  assert.equal(JSC.gmtOffset('GMT−03'), '-03:00');
+});
+
+test('planFingerprint changes when a ticket is renamed or a Customise choice changes', () => {
+  const jira = { tickets: [{ key: 'A-1', summary: 'Old name', status: 'To Do', points: 1, estimateSeconds: null }],
+    sprintStart: null, sprintEnd: null, future: [] };
+  const settings = JSC.cleanSettings(null);
+  const base = planFingerprint(jira, [], '2026-11-16', settings);
+  const renamed = { ...jira, tickets: [{ ...jira.tickets[0], summary: 'New name' }] };
+  assert.notEqual(planFingerprint(renamed, [], '2026-11-16', settings), base);
+  assert.notEqual(planFingerprint(jira, [], '2026-11-16', { ...settings, workingDays: [1, 2, 3] }), base);
+  assert.equal(planFingerprint(jira, [], '2026-11-16', JSC.cleanSettings(null)), base);
+});
+
+test('jiraFetch refuses anything that is not a plain Jira Cloud data address', async () => {
+  for (const [site, p] of [
+    ['https://acme.atlassian.net', '/rest/api/3/../../secure/admin'],
+    ['https://acme.atlassian.net', '/secure/Dashboard.jspa'],
+    ['https://evil.example.com', '/rest/api/3/myself'],
+    ['https://acme.atlassian.net.evil.com', '/rest/api/3/myself'],
+    ['http://acme.atlassian.net', '/rest/api/3/myself']]) {
+    const res = await ctx.jiraFetch(site, p);
+    assert.equal(res.ok, false, site + p);
+    assert.equal(res.status, 0);
+  }
+});

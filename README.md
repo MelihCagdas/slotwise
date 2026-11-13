@@ -91,7 +91,7 @@ Make sure you are signed in to Jira in the same browser.
 
 The extension opens Google Calendar's own new-event page with the ticket filled in, saves it, and returns you to the week you were looking at. This takes a few seconds. Untick **Save a dropped ticket straight away** in the panel if you would rather check each event before it is saved.
 
-**Auto-plan my tickets** does the same for each ticket in turn, about ten seconds a ticket. Do not type in the Calendar tab while it runs: Google Calendar treats single keys as shortcuts and will interrupt it. Pressing the button again later places only tickets that are not on the calendar yet.
+**Auto-plan my tickets** does the same for each ticket in turn, about ten seconds a ticket. Do not type in the Calendar tab while it runs: Google Calendar treats single keys as shortcuts and will interrupt it. While it runs, the button reads **Placing 2 of 7 · Stop**: press it to stop. What is already placed stays. Pressing the button again later places only tickets that are not on the calendar yet.
 
 The extension asks for two permissions: to run on `calendar.google.com`, and to read from `atlassian.net`. It only reads Jira. It sends nothing anywhere else.
 
@@ -188,6 +188,15 @@ Ideas and pull requests are welcome. Open an issue to discuss anything larger fi
 
 ## If something goes wrong
 
+**The extension**
+
+- "You are not signed in to Jira in this browser": open Jira in the same browser, sign in, then press **Refresh** in the panel.
+- "Slotwise was updated. Reload this page to carry on": the extension was updated or reloaded while Calendar was open. Reload the Calendar tab.
+- "Check the event, then press Save": Slotwise opened the new-event page but did not press Save itself. Press Save, or close the page to leave the ticket in the list.
+- A ticket shows "On your calendar" after you deleted its event: press **Clear the "on your calendar" marks** at the bottom of the panel.
+
+**The script**
+
 Open **Executions** in the script editor to see the last run. The message says what to check:
 
 - "Check JIRA_EMAIL and JIRA_TOKEN": the email or token is wrong, or the token has expired.
@@ -202,6 +211,14 @@ The planning logic of the script and the drop logic of the extension (`extension
 
 ```
 npm test
+```
+
+The browser tests load the real extension into Chromium and use it against a stand-in Google Calendar and a stand-in Jira (`test/e2e/harness.js`), so nothing leaves your computer and no account is needed:
+
+```
+npm install
+npx playwright install chromium
+npm run test:e2e
 ```
 
 [`DESIGN.md`](DESIGN.md) explains the design and the choices behind it.

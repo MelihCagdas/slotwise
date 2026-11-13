@@ -501,6 +501,7 @@ function getSettings_() {
   }
   var site = props.JIRA_SITE.trim().replace(/\/+$/, '');
   if (!/^https?:\/\//i.test(site)) site = 'https://' + site;
+  site = site.replace(/^(https?:\/\/[^\/?#]+).*$/i, '$1'); // a pasted board link: keep the site only
 
   var settings = Object.assign({}, DEFAULTS, {
     site: site,

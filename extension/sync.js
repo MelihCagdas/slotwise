@@ -99,13 +99,14 @@ function withoutTickets(jira, keys) {
 }
 
 /** A short text that changes whenever the plan would. Used to skip needless work. */
-function planFingerprint(jira, manualKeys, today) {
-  var brief = function (t) { return [t.key, t.status, t.points, t.estimateSeconds]; };
+function planFingerprint(jira, manualKeys, today, settings) {
+  var brief = function (t) { return [t.key, t.summary, t.status, t.points, t.estimateSeconds]; };
   return JSON.stringify([
     today, jira.sprintStart, jira.sprintEnd,
     jira.tickets.map(brief),
     (jira.future || []).map(function (s) { return [s.id, s.startDate, s.endDate, s.tickets.map(brief)]; }),
-    manualKeys.slice().sort()
+    manualKeys.slice().sort(),
+    settings ? [settings.scope, settings.workingDays, settings.activeStatuses, settings.skipStatuses, settings.fallbackDays] : null
   ]);
 }
 
@@ -184,7 +185,8 @@ var SITE_PATTERN = /^https:\/\/[a-z0-9][a-z0-9-]*\.atlassian\.net$/;
 /** One read-only call to Jira, using the sign-in the browser already has. */
 function jiraFetch(site, path) {
   if (site === JSC.DEMO_SITE) return Promise.resolve(demoResponse(path, new Date()));
-  if (!SITE_PATTERN.test(String(site)) || !/^\/rest\/(api\/3|agile\/1\.0)\//.test(String(path))) {
+  if (!SITE_PATTERN.test(String(site)) || !/^\/rest\/(api\/3|agile\/1\.0)\//.test(String(path)) ||
+      String(path).indexOf('..') !== -1) {
     return Promise.resolve({ ok: false, status: 0, error: 'Not a Jira Cloud address.' });
   }
   return fetch(site + path, { method: 'GET', credentials: 'include', headers: { Accept: 'application/json' } })
@@ -192,6 +194,8 @@ function jiraFetch(site, path) {
       return response.text().then(function (text) {
         var data = null;
         try { data = JSON.parse(text); } catch (e) { /* not JSON, for example a sign-in page */ }
+        // A web page where data was expected is Jira's sign-in page.
+        if (response.ok && data === null) return { ok: false, status: 401, data: null };
         return { ok: response.ok, status: response.status, data: data };
       });
     })
@@ -371,7 +375,7 @@ async function planSprint(options) {
   var jira = await readJira(site, settings.scope);
   var byHand = (await listTagged('primary', 'jscManual=1', todayStart))
     .map(function (e) { return e.key; }).filter(function (k) { return !!k; });
-  var fingerprint = planFingerprint(jira, byHand, today);
+  var fingerprint = planFingerprint(jira, byHand, today, settings);
   if (options.onlyIfChanged && fingerprint === saved.jscFingerprint) return { ok: true, changed: false };
 
   var plan = buildFullPlan(withoutTickets(jira, byHand), today, settings, []);
