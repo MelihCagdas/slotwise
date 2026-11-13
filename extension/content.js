@@ -111,6 +111,7 @@
   function startQueue(items) {
     var p = {
       queue: items, index: 0, stage: 'opening', at: Date.now(), auto: state.autoSave || items.length > 1,
+      dark: ui.root.classList.contains('jsc-dark'),
       base: JSC.accountBase(location.pathname),
       returnTo: location.pathname.indexOf('/calendar/') === 0 ? location.pathname : ''
     };
@@ -133,7 +134,15 @@
     p.stage = 'returning'; p.tries = 0; p.lastTry = 0; writePending(p);
   }
 
+  // The planning screen (cover.js) hides Google's new-event pages while tickets are placed.
+  var cover = window.__jscCover || null;
+
   function watchPending() {
+    watchQueue();
+    if (cover) cover.sync(readPending());
+  }
+
+  function watchQueue() {
     var p = readPending();
     if (!p || !p.queue || !p.queue.length) { if (p) clearPending(); return; }
     var now = Date.now();

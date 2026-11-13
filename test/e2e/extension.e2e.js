@@ -347,8 +347,9 @@ browserTest('Auto-plan can be stopped part way; what was placed stays, and it ca
   await useSite(b, 'demo');
   await b.page.click('#jsc-plan');
   await until(async () => (await b.events()).length >= 2, 'the first two events', 60000);
-  await until(() => b.page.locator('button:has-text("Stop")').count(), 'the Stop button');
-  await b.page.click('button:has-text("Stop")');
+  await until(() => b.page.locator('#jsc-cover-stop:visible').count(), 'the Stop button on the planning screen');
+  await b.page.click('#jsc-cover-stop');
+  await until(() => b.page.locator('#jsc-cover').count().then((n) => n === 0), 'the planning screen to go');
   await new Promise((r) => setTimeout(r, 6000));
   const after = (await b.events()).length;
   assert.ok(after < 8, 'it stopped at ' + after);
@@ -370,4 +371,29 @@ browserTest('Auto-plan carries on after the page is reloaded part way', {}, asyn
   await idle(b);
   const keys = (await b.events()).map((e) => e.title.split(' ')[0]);
   assert.equal(new Set(keys).size, 8, 'no ticket twice: ' + keys.join(' '));
+});
+
+// ---- The planning screen -----------------------------------------------------
+
+browserTest('while tickets are placed, a planning screen hides Google\'s pages and shows progress', {}, async (b) => {
+  await useSite(b, 'demo');
+  await b.page.click('#jsc-plan');
+  await until(() => b.page.locator('#jsc-cover').isVisible(), 'the planning screen');
+  await until(async () => /Ticket [2-9] of 8/.test(await b.page.locator('.jsc-cover-sub').innerText()), 'progress past the first ticket', 30000);
+  // On Google's new-event page the screen is already up, with ticked-off tickets.
+  await until(async () => /eventedit/.test(b.page.url()) && await b.page.locator('#jsc-cover').isVisible() &&
+    await b.page.locator('.jsc-cover-done').count() > 0, 'the screen over the new-event page', 30000);
+  await until(async () => (await b.events()).length === 8, 'all eight', 120000);
+  await idle(b);
+  await until(() => b.page.locator('#jsc-cover').count().then((n) => n === 0), 'the planning screen to go when it is done');
+  assert.equal(await b.page.evaluate(() => sessionStorage.getItem('jsc-cover-shown')), null);
+});
+
+browserTest('the planning screen stays away when the person saves for themselves', {}, async (b) => {
+  await useSite(b, 'demo');
+  await b.page.uncheck('#jsc-auto');
+  await drag(b, 'APP-212', AT.tue10);
+  await b.page.waitForSelector('#xSaveBu');
+  await new Promise((r) => setTimeout(r, 1200));
+  assert.equal(await b.page.locator('#jsc-cover').count(), 0);
 });

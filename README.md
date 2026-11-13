@@ -93,7 +93,7 @@ Make sure you are signed in to Jira in the same browser.
 
 The extension opens Google Calendar's own new-event page with the ticket filled in, saves it, and returns you to the week you were looking at. This takes a few seconds. Untick **Save a dropped ticket straight away** in the panel if you would rather check each event before it is saved.
 
-**Plan tasks** does the same for each ticket in turn, about ten seconds a ticket. Do not type in the Calendar tab while it runs: Google Calendar treats single keys as shortcuts and will interrupt it. While it runs, the button reads **Placing 2 of 7 · Stop**: press it to stop. What is already placed stays. Pressing the button again later places only tickets that are not on the calendar yet.
+**Plan tasks** does the same for each ticket in turn, a few seconds a ticket. Keep the tab open and do not type in it while it runs: Google Calendar treats single keys as shortcuts and will interrupt it. While it runs, a planning screen covers the page and shows each ticket being ticked off; press **Stop** on it to stop. What is already placed stays. Pressing the button again later places only tickets that are not on the calendar yet.
 
 The extension asks for two permissions: to run on `calendar.google.com`, and to read from `atlassian.net`. It only reads Jira. It sends nothing anywhere else.
 
