@@ -6,16 +6,19 @@ import {page, sec, Clip, Tag, Fade, Mark, S} from './shared';
 // The real screen recording, trimmed, with a line saying what is happening.
 // [clip, start in clip (s), length shown (s), playback speed, label, crop ratio]
 const PARTS = [
-  ['c1', 0, 4.6, 1, 'Your Jira tickets sit beside Google Calendar, coloured by status'],
-  ['c2', 0, 4.7, 1, 'Search: type a word or a ticket number'],
-  ['c3', 0, 3.9, 1, 'Drag a ticket onto a slot'],
-  ['c4a', 0, 2.0, 1, 'It is saved as a normal calendar event'],
-  ['c4b', 0, 5.2, 1, 'Stretch it to the time it needs'],
-  ['c5', 0, 13.5, 1, 'Customise: which tickets, working days, statuses, event length'],
-  ['c6', 0, 2.4, 1, 'Press Auto-plan my tickets'],
-  ['c6b', 0, 7.5, 8, 'Each remaining ticket is placed in turn', 1002 / 460, 'Sped up 8x'],
-  ['c7', 7.6, 8.0, 1, 'The week is planned: work in progress first, sized by story points'],
-  ['c8', 0, 12.0, 1, 'Month view: this sprint, and the next one in the weeks after', 510 / 1520],
+  ['c0', 0, 4.7, 1, 'Slotwise sits folded in the corner. One click opens it'],
+  ['c1', 0, 4.1, 1, 'Your Jira tickets beside Google Calendar, coloured by status'],
+  ['c2', 0, 4.3, 1, 'Search: type a word or a ticket number'],
+  ['c3', 0, 5.0, 1, 'Drag a ticket onto a slot'],
+  ['c4a', 0.6, 3.4, 1, 'It is saved as a normal calendar event'],
+  ['c4b', 0, 2.3, 1, 'Stretch it to the time it needs'],
+  ['c5', 0, 13.0, 1, 'Customise: which tickets, working days, statuses, event length'],
+  ['c9', 0, 5.6, 1, 'Fold it away, and bring it back, whenever you like'],
+  ['c6', 0, 2.0, 1, 'Press Plan tasks'],
+  ['c6b', 0, 7.5, 3, 'Each remaining ticket is placed in turn. Press Stop at any time', 994 / 460, 'Sped up 3x'],
+  ['c7', 0, 5.0, 1, 'The week is planned: work in progress first, sized by story points'],
+  ['c8', 0, 7.3, 1, 'Month view: this sprint, and the next one in the weeks after', 472 / 1520],
+  ['c10', 0, 3.3, 1, 'Day view works the same way'],
 ];
 const INTRO = 3.2, OUTRO = 3.0;
 export const RECORDING_FRAMES = sec(INTRO + PARTS.reduce((s, p) => s + p[2], 0) + OUTRO);

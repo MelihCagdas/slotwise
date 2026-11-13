@@ -6,9 +6,9 @@
 
 Slotwise puts your Jira tickets on your Google Calendar, so the work you planned is as visible as your meetings.
 
-[![Watch the 54-second video](docs/video-poster.png)](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-sales.mp4)
+[![Watch the 57-second video](docs/video-poster.png)](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-sales.mp4)
 
-▶ [Watch the 54-second video](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-sales.mp4) · [See the real screen recording](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-screen-recording.mp4)
+▶ [Watch the 57-second video](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-sales.mp4) · [See the real screen recording](https://github.com/MelihCagdas/slotwise/releases/download/v0.3.1/slotwise-screen-recording.mp4)
 
 ## The problem
 
@@ -19,6 +19,8 @@ On a remote team, nobody sees you are heads-down.
 - Your teammates in other time zones ask "what are you on this week?" because the answer lives in a different tool.
 
 ## What Slotwise does
+
+![Slotwise beside Google Calendar: a planned week and the ticket panel](docs/screenshot.png)
 
 - **Your tickets, beside your calendar.** A panel in Google Calendar lists your Jira tickets, coloured by status.
 - **Drag one onto a slot.** It becomes a normal calendar event that you can stretch, move and share.

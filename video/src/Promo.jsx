@@ -12,14 +12,14 @@ const VO = {
   name: ['l3', 1.15, []],
   pool: ['l4', 3.06, [[0.05, 'Your tickets, beside your calendar']]],
   drag: ['l5', 2.93, [[0.0, 'Search'], [0.22, 'Drag onto a slot'], [0.62, 'Stretch to fit']]],
-  plan: ['l6', 6.16, [[0.08, 'Auto-plan'], [0.30, 'Your whole week, laid out'], [0.58, 'Work in progress first'], [0.80, 'Sized by story points']]],
+  plan: ['l6', 5.88, [[0.08, 'Plan tasks'], [0.30, 'Your whole week, laid out'], [0.58, 'Work in progress first'], [0.80, 'Sized by story points']]],
   team: ['l7', 6.92, [[0.0, 'A real calendar event'], [0.42, 'Visible across time zones'], [0.76, 'They know when not to book you']]],
   values: ['l8', 3.11, []],
   start: ['l9', 3.71, []],
 };
 
 // Scene lengths in seconds.
-const LEN = {hook: 5.9, pain: 8.0, name: 2.2, pool: 4.0, drag: 4.6, plan: 7.2, team: 7.6, custom: 2.8, values: 4.4, start: 6.8};
+const LEN = {hook: 5.9, pain: 8.0, name: 2.2, pool: 5.4, drag: 4.6, plan: 7.2, team: 7.6, custom: 5.2, values: 4.4, start: 6.8};
 export const PROMO_FRAMES = sec(Object.values(LEN).reduce((a, b) => a + b, 0));
 
 const rise = (f, at, len = 10) => ({opacity: appear(f, at, len), transform: `translateY(${(1 - appear(f, at, len)) * 12}px)`});
@@ -52,11 +52,12 @@ const Say = ({line, at = 0.2, bottom = 56, size = 54}) => {
 
 const KIND = {doing: [C.doing, C.doingBg], review: [C.review, C.reviewBg], todo: [C.todo, C.todoBg]};
 const Ticket = ({k, summary, status, kind}) => (
-  <div style={{background: C.card, border: `1px solid ${C.line}`, borderLeft: `4px solid ${KIND[kind][0]}`, borderRadius: 8,
-    padding: '8px 12px', marginBottom: 8}}>
-    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-      <span style={{color: C.blue, fontWeight: 600, fontSize: 16}}>{k}</span>
-      <span style={{background: KIND[kind][1], color: KIND[kind][0], fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 10}}>{status}</span>
+  <div style={{background: C.card, border: `1px solid ${C.line}`, borderRadius: 10,
+    padding: '9px 12px', marginBottom: 8}}>
+    <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
+      <span style={{width: 9, height: 9, borderRadius: 5, background: KIND[kind][0]}} />
+      <span style={{flex: 1, color: S.muted, fontFamily: mono, fontWeight: 500, fontSize: 14}}>{k}</span>
+      <span style={{background: KIND[kind][1], color: KIND[kind][0], fontSize: 12, fontWeight: 500, padding: '3px 9px', borderRadius: 6}}>{status}</span>
     </div>
     <div style={{fontSize: 16, marginTop: 4}}>{summary}</div>
   </div>
@@ -225,36 +226,56 @@ export const Promo = () => {
   add('hook', <Hook />);
   add('pain', <Pain />);
   add('name', <Name />);
-  add('pool', <Shot line="pool"><Clip name="c1" rate={1.1} zoom={1.14} focus={[0.86, 0.3]} length={sec(LEN.pool)} /></Shot>);
+  add('pool', (
+    <Shot line="pool">
+      <Cut from={0} length={1.9}><Clip name="c0" from={1.0} rate={1.5} zoom={1.7} focus={[0.97, 0.02]} length={40} /></Cut>
+      <Cut from={1.9} length={3.5}><Clip name="c1" rate={1.1} zoom={1.14} focus={[0.86, 0.3]} length={sec(3.5)} /></Cut>
+    </Shot>
+  ));
   add('drag', (
     <Shot line="drag">
-      <Cut from={0} length={1.05}><Clip name="c2" from={1.2} rate={2.6} zoom={1.3} focus={[0.88, 0.12]} length={30} /></Cut>
-      <Cut from={1.05} length={1.15}><Clip name="c3" from={0.3} rate={3.0} /></Cut>
-      <Cut from={2.2} length={2.4}><Clip name="c4b" from={0.6} rate={1.8} zoom={1.35} focus={[0.36, 0.45]} length={60} /></Cut>
+      <Cut from={0} length={1.05}><Clip name="c2" from={1.0} rate={2.6} zoom={1.3} focus={[0.88, 0.12]} length={30} /></Cut>
+      <Cut from={1.05} length={1.15}><Clip name="c3" from={1.2} rate={3.0} /></Cut>
+      <Cut from={2.2} length={0.9}><Clip name="c4a" from={2.8} rate={1.0} zoom={1.35} focus={[0.36, 0.45]} length={1} /></Cut>
+      <Cut from={3.1} length={1.5}><Clip name="c4b" from={0} rate={1.0} zoom={1.35} focus={[0.36, 0.45]} length={1} /></Cut>
     </Shot>
   ));
   add('plan', (
     <Shot line="plan">
-      <Cut from={0} length={1.5}><Clip name="c6" from={0.3} rate={1.4} zoom={1.25} focus={[0.88, 0.85]} length={42} /></Cut>
+      <Cut from={0} length={1.5}><Clip name="c6" from={0} rate={1.3} zoom={1.25} focus={[0.88, 0.85]} length={42} /></Cut>
       <Cut from={1.5} length={2.2}>
-        <Clip name="c6b" rate={26} width={380} ratio={1002 / 460} top={44} />
+        <Clip name="c6b" rate={9} width={380} ratio={994 / 460} top={44} />
         <Tag left={1180} top={64}>Sped up</Tag>
       </Cut>
-      <Cut from={3.7} length={3.5}><Clip name="c7" from={7.6} rate={2.2} zoom={1.08} focus={[0.3, 0.1]} length={sec(3.5)} /></Cut>
+      <Cut from={3.7} length={3.5}><Clip name="c7" from={0} rate={1.4} zoom={1.08} focus={[0.3, 0.1]} length={sec(3.5)} /></Cut>
     </Shot>
   ));
   add('team', (
     <Shot line="team">
-      <Clip name="c8" from={1.0} rate={1.0} ratio={510 / 1520} top={220} zoom={1.05} focus={[0.3, 0.3]} length={sec(LEN.team)} />
-      <Tag left={276} top={160}>Month view</Tag>
+      <Cut from={0} length={4.6}>
+        <Clip name="c8" from={0} rate={1.0} ratio={472 / 1520} top={230} zoom={1.05} focus={[0.3, 0.3]} length={sec(4.6)} />
+        <Tag left={276} top={170}>Month view</Tag>
+      </Cut>
+      <Cut from={4.6} length={3.0}>
+        <Clip name="c10" from={0.2} rate={1.0} />
+        <Tag left={276} top={60}>Day view</Tag>
+      </Cut>
     </Shot>
   ));
   add('custom', (
     <AbsoluteFill style={page}>
-      <Clip name="c5" from={0.8} rate={4.4} zoom={1.35} focus={[0.9, 0.35]} length={sec(LEN.custom)} />
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: 64, textAlign: 'center', fontSize: 50, fontWeight: 600, letterSpacing: -1.6}}>
-        Customise how it plans
-      </div>
+      <Cut from={0} length={2.7}>
+        <Clip name="c5" from={0.8} rate={4.4} zoom={1.35} focus={[0.9, 0.35]} length={sec(2.7)} />
+        <div style={{position: 'absolute', left: 0, right: 0, bottom: 64, textAlign: 'center', fontSize: 50, fontWeight: 600, letterSpacing: -1.6}}>
+          Customise how it plans
+        </div>
+      </Cut>
+      <Cut from={2.7} length={2.5}>
+        <Clip name="c9" from={0.5} rate={1.9} zoom={1.25} focus={[0.95, 0.05]} length={sec(2.5)} />
+        <div style={{position: 'absolute', left: 0, right: 0, bottom: 64, textAlign: 'center', fontSize: 50, fontWeight: 600, letterSpacing: -1.6}}>
+          Fold it away when you need the space
+        </div>
+      </Cut>
     </AbsoluteFill>
   ));
   add('values', <Values />);

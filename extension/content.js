@@ -658,7 +658,7 @@
 
     ui.setScope = select('jsc-scope', [['sprint', 'My current sprint'], ['all', 'All my open tickets']],
       function (v) { saveSettings({ scope: v }); loadPlaced().then(render); });
-    box.appendChild(field('Auto-plan uses', ui.setScope));
+    box.appendChild(field('Plan tasks uses', ui.setScope));
 
     var days = el('div', 'jsc-days'); days.id = 'jsc-days';
     ui.setDays = [];
