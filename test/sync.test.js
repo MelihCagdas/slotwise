@@ -220,7 +220,7 @@ test('heads-up: only real invitations count', () => {
   const cases = {
     'already accepted': invite('i', '11:00', '11:30', { attendees: [me('accepted')] }),
     'already declined': invite('i', '11:00', '11:30', { attendees: [me('declined')] }),
-    'already has a note': invite('i', '11:00', '11:30', { attendees: [me('needsAction', { comment: 'x' })] }),
+    'already answered maybe': invite('i', '11:00', '11:30', { attendees: [me('tentative', { comment: 'x' })] }),
     'cancelled': invite('i', '11:00', '11:30', { status: 'cancelled' }),
     'my own meeting': invite('i', '11:00', '11:30', { organizer: { self: true } }),
     'all day': invite('i', '11:00', '11:30', { start: { date: '2026-11-17' }, end: { date: '2026-11-18' } }),
@@ -239,13 +239,15 @@ test('heads-up: what counts as a ticket block', () => {
   assert.equal(isOpenInvite(block('b', '10:00', '11:00')), false);
 });
 
-test('heads-up: the note names the ticket and its time, and only the person\'s own guest entry changes', () => {
+test('heads-up: the note names the ticket and its time, the answer becomes Maybe, and only the person\'s own guest entry changes', () => {
   const note = headsUpNote(block('b', '10:00', '11:30'));
   assert.equal(note, 'Heads-up: I have WEB-7 Fix login planned 10:00 to 11:30 then. I can still join if it is needed. (Sent by Slotwise)');
   const before = invite('i', '11:00', '11:30').attendees;
   const after = withNote(before, note);
   assert.deepEqual(JSON.parse(JSON.stringify(after[0])), before[0]);
   assert.equal(after[1].comment, note);
-  assert.equal(after[1].responseStatus, 'needsAction', 'the answer is not changed');
+  assert.equal(after[1].responseStatus, 'tentative', 'answered Maybe, so Google tells the organiser');
+  assert.equal(before[1].responseStatus, 'needsAction');
+  assert.deepEqual(findClashes([block('b1', '10:00', '12:00'), invite('i', '11:00', '11:30', { attendees: after })], {}), [], 'once answered, it is not sent again');
   assert.equal(before[1].comment, undefined, 'the original list is not touched');
 });

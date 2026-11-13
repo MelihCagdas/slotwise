@@ -193,7 +193,7 @@ function isTicketBlock(e) {
 function isOpenInvite(e) {
   if (!e || e.status === 'cancelled' || !e.start || !e.start.dateTime) return false;
   if (!e.organizer || e.organizer.self) return false;
-  return (e.attendees || []).some(function (a) { return a.self && a.responseStatus === 'needsAction' && !a.comment; });
+  return (e.attendees || []).some(function (a) { return a.self && a.responseStatus === 'needsAction'; });
 }
 
 /**
@@ -222,13 +222,19 @@ function headsUpNote(ticket) {
     ' then. I can still join if it is needed. (Sent by Slotwise)';
 }
 
-/** The guest list with the note added to the person's own entry. Nothing else changes. */
+/**
+ * The guest list with the person's own entry answered "Maybe" and the note
+ * added. Google tells the organiser about an answer, but not about a note on
+ * its own, so the two go together. Nobody else's entry changes, and the
+ * person can still change the answer to Yes or No.
+ */
 function withNote(attendees, note) {
   return (attendees || []).map(function (a) {
     if (!a.self) return a;
     var copy = {};
     Object.keys(a).forEach(function (k) { copy[k] = a[k]; });
     copy.comment = note;
+    copy.responseStatus = 'tentative';
     return copy;
   });
 }
@@ -506,8 +512,8 @@ function explain(error) {
 
 /**
  * Looks at the next two weeks for invitations that overlap a ticket block and
- * adds a note to the person's reply, which Google sends to the organiser.
- * The answer itself is left as it was. Each invitation gets one note, once.
+ * answers "Maybe" with a note, which Google sends to the organiser. An
+ * invitation that has an answer is never touched, so each gets one note, once.
  */
 async function sendHeadsUps() {
   if (!(await googleToken(false))) return { ok: true, sent: 0 };

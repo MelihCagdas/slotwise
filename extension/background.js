@@ -124,6 +124,7 @@ var handlers = {
   'jsc-debug': async function (message) {
     var out = { auth: lastAuth, google: lastGoogle, version: chrome.runtime.getManifest().version };
     if (message.run === 'headsup') { try { out.result = await sendHeadsUps(); } catch (e) { out.error = String(e && e.message || e); } }
+    if (message.run === 'reset') await chrome.storage.local.remove('jscHeadsUpDone');
     if (message.run === 'token') { out.token = !!(await googleToken(false)); out.auth = lastAuth; }
     out.google = lastGoogle;
     return out;

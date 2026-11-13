@@ -26,7 +26,7 @@ On a remote team, nobody sees you are heads-down.
 - **Drag one onto a slot.** It becomes a normal calendar event that you can stretch, move and share.
 - **Or press Plan tasks.** Your tickets are laid out across the week: work in progress first, sized by story points.
 - **Everyone can see it.** The events show as busy, so people booking you see the time is taken, and what for.
-- **A heads-up when someone books over a ticket.** If a meeting invitation lands on a ticket you placed, Slotwise adds a note to your reply: "Heads-up: I have APP-12 Fix login planned 10:00 to 11:30 then. I can still join if it is needed." The person who invited you sees it on the event. Your answer is left for you to give.
+- **A heads-up when someone books over a ticket.** If a meeting invitation lands on a ticket you placed, Slotwise answers "Maybe" with a note: "Heads-up: I have APP-12 Fix login planned 10:00 to 11:30 then. I can still join if it is needed." Google tells the person who invited you. You can still change the answer to Yes or No.
 - **A plan that follows Jira.** Once you have planned, a ticket that changes status, size or sprint moves on your calendar by itself.
 
 **Transparency first. Respect for time. Real focus.**
@@ -68,7 +68,7 @@ The panel works without this. Connecting adds three things, with nothing to swit
 
 - **Instant drops.** A dropped ticket is on the calendar in under a second, with no page change.
 - **A plan that follows Jira.** After you press **Plan tasks** once, the plan is kept up to date while Chrome is running.
-- **Heads-ups.** Every two minutes, and whenever you open Calendar, Slotwise looks at the invitations you have not answered in the next two weeks. One that overlaps a ticket placed on an hour gets the note, once. All-day plan bars never count as a clash.
+- **Heads-ups.** Every two minutes, and whenever you open Calendar, Slotwise looks at the invitations you have not answered in the next two weeks. One that overlaps a ticket placed on an hour is answered "Maybe" with the note, once. All-day plan bars never count as a clash.
 
 Press **Connect Google Calendar** at the bottom of the panel and choose **Allow**. Each of the two automatic features has an off switch in **Customise**, under "Done for you".
 
@@ -112,7 +112,7 @@ The extension opens Google Calendar's own new-event page with the ticket filled 
 
 **Plan tasks** does the same for each ticket in turn, a few seconds a ticket. Keep the tab open and do not type in it while it runs: Google Calendar treats single keys as shortcuts and will interrupt it. While it runs, a planning screen covers the page and shows each ticket being ticked off; press **Stop** on it to stop. What is already placed stays. Pressing the button again later places only tickets that are not on the calendar yet.
 
-The extension asks to run on `calendar.google.com` and to read from `atlassian.net`. It only reads Jira. If you connect Google Calendar it also asks Google for permission to see and change your events: it creates events for your tickets, keeps its own **Jira plan** calendar, and adds the heads-up note to your own reply on an invitation. It changes nothing else, and it sends nothing anywhere else.
+The extension asks to run on `calendar.google.com` and to read from `atlassian.net`. It only reads Jira. If you connect Google Calendar it also asks Google for permission to see and change your events: it creates events for your tickets, keeps its own **Jira plan** calendar, and answers "Maybe" with the heads-up note on an invitation that lands on a ticket. It changes nothing else, and it sends nothing anywhere else.
 
 ## Automatic plan
 
