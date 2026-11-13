@@ -1,6 +1,6 @@
 # Jira sprint on Google Calendar — design
 
-Working name: `jira-sprint-calendar`. Date: 2026-11-13. Status: approved 2026-11-13.
+Product name: Slotwise (first called `jira-sprint-calendar`). Date: 2026-11-13. Status: approved 2026-11-13.
 
 ## Intent
 

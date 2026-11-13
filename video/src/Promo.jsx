@@ -394,7 +394,7 @@ const Title = () => {
   return (
     <AbsoluteFill style={{...page, alignItems: 'center', justifyContent: 'center'}}>
       <div style={{transform: `scale(${pop})`}}><Mark /></div>
-      <div style={{fontSize: 108, fontWeight: 800, letterSpacing: -4, marginTop: 34, opacity: appear(f, 8, 14)}}>Jira Sprint Calendar</div>
+      <div style={{fontSize: 108, fontWeight: 800, letterSpacing: -4, marginTop: 34, opacity: appear(f, 8, 14)}}>Slotwise</div>
       <div style={{fontSize: 44, color: C.muted, marginTop: 6, opacity: appear(f, 20, 14)}}>Your sprint, on your calendar.</div>
     </AbsoluteFill>
   );
@@ -450,7 +450,7 @@ const Start = () => {
         })}
       </div>
       <div style={{marginTop: 54, fontSize: 42, fontWeight: 800, color: C.blue, opacity: appear(f, 92, 14)}}>
-        github.com/MelihCagdas/jira-sprint-calendar
+        github.com/MelihCagdas/slotwise
       </div>
       <div style={{marginTop: 12, fontSize: 28, color: C.muted, opacity: appear(f, 104, 14)}}>Free and open source · MIT licence</div>
     </AbsoluteFill>

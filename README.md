@@ -1,6 +1,6 @@
-# Jira Sprint Calendar
+# Slotwise
 
-**Your sprint, on your calendar.** Your Jira tickets appear in Google Calendar, laid out across the days of the sprint, next to your meetings. No app to learn, no board to keep open.
+**Your Jira tickets, on your calendar.** Your Jira tickets appear in Google Calendar, laid out across the days of the sprint, next to your meetings. No app to learn, no board to keep open.
 
 ![A calendar week with Jira tickets shown as bars above the meetings](docs/preview.svg)
 
@@ -12,7 +12,7 @@ Remote teams run on two tools that never meet. Jira knows what you committed to.
 - A teammate books a meeting on the day you planned to finish a ticket, because they had no way to know.
 - "What are you working on this week?" gets asked in every standup.
 
-Jira Sprint Calendar puts the plan where people already look. Open your calendar and you see what you are delivering each day, this sprint and the next.
+Slotwise puts the plan where people already look. Open your calendar and you see what you are delivering each day, this sprint and the next.
 
 ## Two ways to use it
 
@@ -27,7 +27,7 @@ Use either, or both.
 
 ## Drag and drop
 
-The extension adds a **Jira tickets** panel to Google Calendar in your browser.
+The extension adds a **Slotwise** panel to Google Calendar in your browser, listing your Jira tickets.
 
 - **Your tickets, in one list.** This sprint first, then your other open tickets.
 - **Search.** Type to filter your own tickets. Three letters or more also searches the rest of Jira, and a ticket number such as `APP-12` finds that ticket.
@@ -62,7 +62,7 @@ It is not in the Chrome Web Store yet, so it is loaded by hand. This takes about
 2. Open `chrome://extensions` in the browser.
 3. Switch on **Developer mode** (top right).
 4. Click **Load unpacked** and choose the `extension` folder.
-5. Open Google Calendar. In the **Jira tickets** panel on the right, enter your Jira address, for example `your-team.atlassian.net`.
+5. Open Google Calendar. In the **Slotwise** panel on the right, enter your Jira address, for example `your-team.atlassian.net`.
 
 Make sure you are signed in to Jira in the same browser.
 

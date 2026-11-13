@@ -1,9 +1,9 @@
 {
-  "name": "jira-sprint-calendar-video",
+  "name": "slotwise-video",
   "private": true,
   "scripts": {
     "preview": "remotion studio src/index.jsx",
-    "render": "remotion render src/index.jsx Promo out/jira-sprint-calendar.mp4"
+    "render": "remotion render src/index.jsx Promo out/slotwise.mp4"
   },
   "dependencies": {
     "@remotion/cli": "4.0.290",

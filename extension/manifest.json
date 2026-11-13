@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Jira Sprint Calendar",
-  "version": "0.2.0",
-  "description": "Your Jira tickets in a panel beside Google Calendar. Search, then drag one onto a day or an hour to put it on your calendar.",
+  "name": "Slotwise for Jira",
+  "version": "0.3.0",
+  "description": "Your Jira tickets in a panel beside Google Calendar. Search, drag one onto a slot, or auto-plan them across your week.",
   "permissions": [
     "storage",
     "identity",

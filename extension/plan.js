@@ -1,6 +1,6 @@
 // GENERATED from Code.gs by scripts/sync-plan.js. Do not edit; run `npm run sync`.
 /**
- * Jira Sprint Calendar
+ * Slotwise, automatic plan (Google Apps Script)
  * Shows your open Jira sprint tickets as all-day bars in a separate
  * "Jira plan" Google calendar. See README.md for setup.
  *

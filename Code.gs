@@ -1,5 +1,5 @@
 /**
- * Jira Sprint Calendar
+ * Slotwise, automatic plan (Google Apps Script)
  * Shows your open Jira sprint tickets as all-day bars in a separate
  * "Jira plan" Google calendar. See README.md for setup.
  *
@@ -552,7 +552,7 @@ function getPlanCalendar_(createIfMissing) {
   var calendar = id ? CalendarApp.getCalendarById(id) : null;
   if (!calendar && createIfMissing) {
     calendar = CalendarApp.createCalendar(CALENDAR_NAME, {
-      description: 'Your Jira sprint tickets, drawn by Jira Sprint Calendar.',
+      description: 'Your Jira sprint tickets, drawn by Slotwise.',
       timeZone: Session.getScriptTimeZone()
     });
     props.setProperty('CALENDAR_ID', calendar.getId());
@@ -620,7 +620,7 @@ function sync() {
       (jira.sprintEnd ? ' in the sprint ending ' + jira.sprintEnd : ' (no open sprint found)') +
       ' and ' + upcoming + ' in future sprints.');
   } catch (err) {
-    console.error('Jira Sprint Calendar did not update: ' + err.message);
+    console.error('Slotwise did not update: ' + err.message);
     throw err;
   } finally {
     lock.releaseLock();

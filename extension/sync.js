@@ -1,5 +1,5 @@
 /**
- * Jira Sprint Calendar, the automatic plan.
+ * Slotwise, the automatic plan.
  * Reads the sprint from Jira (with the browser's Jira sign-in) and keeps a
  * "Jira plan" calendar in Google Calendar in step with it. Uses the planning
  * rules in plan.js, which are the same ones the Apps Script version uses.
@@ -324,7 +324,7 @@ async function ensurePlanCalendar() {
   }
   var created = await gcal('POST', '/calendars', {
     summary: CALENDAR_NAME,
-    description: 'Your Jira sprint tickets, drawn by Jira Sprint Calendar.'
+    description: 'Your Jira tickets, drawn by Slotwise.'
   });
   await chrome.storage.local.set({ jscCalendarId: created.id });
   return created.id;

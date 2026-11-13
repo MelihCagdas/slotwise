@@ -1,5 +1,5 @@
 /**
- * Jira Sprint Calendar, the panel inside Google Calendar.
+ * Slotwise, the panel inside Google Calendar.
  *
  * The panel is the pool: your Jira tickets, coloured by status. Drag one
  * onto a day or an hour, or press "Auto-plan my tickets" to spread the tickets
@@ -419,7 +419,7 @@
 
   function render() {
     ui.root.classList.toggle('jsc-closed', !state.open);
-    ui.toggle.textContent = state.open ? '›' : 'Jira';
+    ui.toggle.textContent = state.open ? '›' : 'Slotwise';
     ui.toggle.title = state.open ? 'Hide Jira tickets' : 'Show Jira tickets';
     ui.setup.hidden = !!state.site;
     ui.main.hidden = !state.site;
@@ -566,7 +566,9 @@
     ui.root.appendChild(ui.toggle);
 
     var panel = el('div', 'jsc-panel');
-    panel.appendChild(el('div', 'jsc-title', 'Jira tickets'));
+    var brand = el('div', 'jsc-title', 'Slotwise');
+    brand.appendChild(el('span', 'jsc-subtitle', 'Jira tickets'));
+    panel.appendChild(brand);
 
     // First run: ask for the Jira address.
     ui.setup = el('form', 'jsc-setup');

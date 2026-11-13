@@ -1,5 +1,5 @@
 /**
- * Jira Sprint Calendar, browser extension.
+ * Slotwise, browser extension.
  * Pure helpers: no browser or network calls, so they can be unit tested.
  */
 var JSC = (function () {

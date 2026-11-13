@@ -1,5 +1,5 @@
 /**
- * Jira Sprint Calendar, background worker.
+ * Slotwise, background worker.
  * Reads Jira for the panel, and, once Google Calendar is connected, creates
  * events directly and keeps the automatic plan up to date.
  * It only reads Jira. It only changes events it created itself.
@@ -15,7 +15,7 @@ async function refreshIfWanted() {
   try {
     await planSprint({ onlyIfChanged: true });
   } catch (e) {
-    console.warn('Jira Sprint Calendar: plan not refreshed.', explain(e));
+    console.warn('Slotwise: plan not refreshed.', explain(e));
   }
 }
 

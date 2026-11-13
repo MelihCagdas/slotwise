@@ -1,5 +1,5 @@
 {
-  "name": "jira-sprint-calendar",
+  "name": "slotwise",
   "version": "1.0.0",
   "description": "Show your Jira sprint tickets as all-day bars in Google Calendar.",
   "private": true,

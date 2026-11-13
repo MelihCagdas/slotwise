@@ -1,4 +1,4 @@
-/* Jira Sprint Calendar: the panel beside Google Calendar. */
+/* Slotwise: the panel beside Google Calendar. */
 #jsc-root {
   --jsc-bg: #ffffff;
   --jsc-fg: #1f2328;
@@ -205,3 +205,5 @@
   cursor: pointer;
 }
 #jsc-root .jsc-day.jsc-on { background: var(--jsc-accent); border-color: var(--jsc-accent); color: var(--jsc-bg); }
+
+#jsc-root .jsc-subtitle { margin-left: 8px; font-size: 12px; font-weight: 500; color: var(--jsc-muted); }
