@@ -26,7 +26,7 @@ On a remote team, nobody sees you are heads-down.
 - **Drag one onto a slot.** It becomes a normal calendar event that you can stretch, move and share.
 - **Or press Plan tasks.** Your tickets are laid out across the week: work in progress first, sized by story points.
 - **Everyone can see it.** The events show as busy, so people booking you see the time is taken, and what for.
-- **A heads-up when someone books over a ticket.** If a meeting invitation lands on a ticket you placed, Slotwise answers "Maybe" with a note: "Heads-up: I have APP-12 Fix login planned 10:00 to 11:30 then. I can still join if it is needed." Google tells the person who invited you. You can still change the answer to Yes or No.
+- **A heads-up when someone books over a ticket.** If a meeting invitation lands on a ticket you placed, Slotwise answers "Maybe" with a note: "Heads-up: I have APP-12 Fix login planned 10:00 to 11:30 then. I can still join if it is needed." Google emails that to the person who invited you. You can still change the answer to Yes or No.
 - **A plan that follows Jira.** Once you have planned, a ticket that changes status, size or sprint moves on your calendar by itself.
 
 **Transparency first. Respect for time. Real focus.**
