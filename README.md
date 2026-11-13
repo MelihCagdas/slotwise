@@ -54,13 +54,13 @@ The extension adds a **Slotwise** panel to Google Calendar in your browser, list
 - **Search.** Type to filter your own tickets. Three letters or more also searches the rest of Jira, and a ticket number such as `APP-12` finds that ticket.
 - **Drag onto the calendar.** Drop on an hour in week or day view for a one-hour event at that time. Drop on the strip under the date, or on a day in month view, for an all-day event.
 - **Colours by status.** Grey for to do, blue for in progress, amber for in review or QA.
-- **Auto-plan my tickets.** One button spreads the tickets that are still in the panel across the remaining days of the sprint (or the coming working days, if you do not use sprints): work in progress first, then board order, sized by story points. Tickets you already placed are left alone and get a tick in the panel.
+- **Plan tasks.** One button spreads the tickets that are still in the panel across the remaining days of the sprint (or the coming working days, if you do not use sprints): work in progress first, then board order, sized by story points. Tickets you already placed are left alone and get a tick in the panel.
 - **It is a normal event.** The title is the ticket number and name, and the description links to the ticket. Move it, stretch it across hours or days, change its colour, invite people. It shows as busy, so anyone booking you sees the time is taken.
 - **No token.** It uses the Jira sign-in your browser already has.
 
 ### Customise
 
-The **Customise** link at the bottom of the panel sets:
+The **Customise** button (the sliders icon at the top of the panel) sets:
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -91,7 +91,7 @@ Make sure you are signed in to Jira in the same browser.
 
 The extension opens Google Calendar's own new-event page with the ticket filled in, saves it, and returns you to the week you were looking at. This takes a few seconds. Untick **Save a dropped ticket straight away** in the panel if you would rather check each event before it is saved.
 
-**Auto-plan my tickets** does the same for each ticket in turn, about ten seconds a ticket. Do not type in the Calendar tab while it runs: Google Calendar treats single keys as shortcuts and will interrupt it. While it runs, the button reads **Placing 2 of 7 · Stop**: press it to stop. What is already placed stays. Pressing the button again later places only tickets that are not on the calendar yet.
+**Plan tasks** does the same for each ticket in turn, about ten seconds a ticket. Do not type in the Calendar tab while it runs: Google Calendar treats single keys as shortcuts and will interrupt it. While it runs, the button reads **Placing 2 of 7 · Stop**: press it to stop. What is already placed stays. Pressing the button again later places only tickets that are not on the calendar yet.
 
 The extension asks for two permissions: to run on `calendar.google.com`, and to read from `atlassian.net`. It only reads Jira. It sends nothing anywhere else.
 
@@ -190,7 +190,7 @@ Ideas and pull requests are welcome. Open an issue to discuss anything larger fi
 
 **The extension**
 
-- "You are not signed in to Jira in this browser": open Jira in the same browser, sign in, then press **Refresh** in the panel.
+- "You are not signed in to Jira in this browser": open Jira in the same browser, sign in, then press **Refresh** (the arrows icon at the top of the panel).
 - "Slotwise was updated. Reload this page to carry on": the extension was updated or reloaded while Calendar was open. Reload the Calendar tab.
 - "Check the event, then press Save": Slotwise opened the new-event page but did not press Save itself. Press Save, or close the page to leave the ticket in the list.
 - A ticket shows "On your calendar" after you deleted its event: press **Clear the "on your calendar" marks** at the bottom of the panel.

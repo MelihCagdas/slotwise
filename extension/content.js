@@ -448,6 +448,67 @@
     return node;
   }
 
+  var SVG = 'http://www.w3.org/2000/svg';
+  function svg(tag, attrs) {
+    var node = document.createElementNS(SVG, tag);
+    Object.keys(attrs).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+    return node;
+  }
+
+  // Line icons, 24 by 24. Drawn here because the calendar page allows no outside files.
+  var ICONS = {
+    refresh: ['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5',
+      'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16', 'M8 16H3v5'],
+    sliders: ['M21 4h-7', 'M10 4H3', 'M21 12h-9', 'M8 12H3', 'M21 20h-5', 'M12 20H3', 'M14 2v4', 'M8 10v4', 'M16 18v4'],
+    chevron: ['m9 18 6-6-6-6'],
+    search: ['M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0', 'm21 21-4.3-4.3'],
+    plan: ['M8 2v4', 'M16 2v4', 'M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8', 'M3 10h18', 'M16 19h6', 'M19 16v6'],
+    stop: ['M7 7h10v10H7z'],
+    check: ['M20 6 9 17l-5-5'],
+    edit: ['M12 20h9', 'M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z']
+  };
+  function icon(name, size) {
+    var node = svg('svg', { viewBox: '0 0 24 24', width: size || 16, height: size || 16, fill: 'none',
+      stroke: 'currentColor', 'stroke-width': 1.9, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+      'aria-hidden': 'true', 'class': 'jsc-icon' });
+    ICONS[name].forEach(function (d) { node.appendChild(svg('path', { d: d })); });
+    return node;
+  }
+
+  /** The Slotwise mark: a calendar page holding two ticket cards. */
+  function logo(size) {
+    var node = svg('svg', { viewBox: '0 0 100 100', width: size, height: size, 'aria-hidden': 'true', 'class': 'jsc-logo' });
+    var rect = function (x, y, w, h, r, fill) {
+      node.appendChild(svg('rect', { x: x, y: y, width: w, height: h, rx: r, fill: fill }));
+    };
+    rect(0, 0, 100, 100, 24, '#0c66e4');
+    rect(27, 7, 8, 15, 4, '#fff'); rect(65, 7, 8, 15, 4, '#fff');
+    rect(13, 27, 74, 60, 9, '#fff');
+    rect(21, 36, 52, 16, 3.5, '#1a73e8'); rect(21, 36, 8.5, 16, 3.5, '#fbbc04');
+    rect(35, 60, 44, 16, 3.5, '#34a853'); rect(35, 60, 8.5, 16, 3.5, '#172b4d');
+    return node;
+  }
+
+  function iconButton(id, name, label, onClick) {
+    var b = button('jsc-icon-button', '', onClick);
+    b.id = id; b.title = label; b.setAttribute('aria-label', label);
+    b.appendChild(icon(name, 17));
+    return b;
+  }
+
+  function setOpen(open) {
+    state.open = open;
+    api.set({ jscOpen: open });
+    render();
+  }
+
+  /** The label and icon of the main button. */
+  function setPlan(text, name) {
+    ui.plan.textContent = '';
+    ui.plan.appendChild(icon(name, 17));
+    ui.plan.appendChild(el('span', '', text));
+  }
+
   function button(className, text, onClick) {
     var b = el('button', className, text);
     b.type = 'button';
@@ -475,6 +536,7 @@
     row.draggable = true;
     row.title = 'Drag onto the calendar';
     var top = el('div', 'jsc-ticket-top');
+    top.appendChild(el('span', 'jsc-dot'));
     var link = el('a', 'jsc-key', ticket.key);
     link.href = ticket.url; link.target = '_blank'; link.rel = 'noopener';
     link.draggable = false;
@@ -482,7 +544,12 @@
     top.appendChild(el('span', 'jsc-pill', ticket.status || 'No status'));
     row.appendChild(top);
     row.appendChild(el('div', 'jsc-summary', ticket.summary));
-    if (state.placed[ticket.key]) row.appendChild(el('div', 'jsc-onc', '✓ On your calendar'));
+    if (state.placed[ticket.key]) {
+      var onc = el('div', 'jsc-onc');
+      onc.appendChild(icon('check', 13));
+      onc.appendChild(el('span', '', 'On your calendar'));
+      row.appendChild(onc);
+    }
     row.addEventListener('dragstart', function (event) {
       state.dragging = ticket;
       event.dataTransfer.effectAllowed = 'copy';
@@ -497,7 +564,9 @@
   function section(title, tickets) {
     var frag = document.createDocumentFragment();
     if (!tickets.length) return frag;
-    frag.appendChild(el('h3', 'jsc-heading', title + ' (' + tickets.length + ')'));
+    var heading = el('h3', 'jsc-heading', title + ' ');
+    heading.appendChild(el('span', 'jsc-count', String(tickets.length)));
+    frag.appendChild(heading);
     var list = el('ul', 'jsc-list');
     tickets.forEach(function (t) { list.appendChild(ticketRow(t)); });
     frag.appendChild(list);
@@ -506,8 +575,7 @@
 
   function render() {
     ui.root.classList.toggle('jsc-closed', !state.open);
-    ui.toggle.textContent = state.open ? '›' : 'Slotwise';
-    ui.toggle.title = state.open ? 'Hide Jira tickets' : 'Show Jira tickets';
+    ui.refresh.hidden = ui.customise.hidden = !state.site;
     ui.setup.hidden = !!state.site;
     ui.main.hidden = !state.site;
     if (!state.site) return;
@@ -527,18 +595,19 @@
     // Customise
     ui.custom.hidden = !state.customising;
     ui.lists.hidden = state.customising;
-    ui.search.hidden = state.customising;
+    ui.searchWrap.hidden = state.customising;
     ui.legend.hidden = state.customising;
     if (state.customising) ui.empty.hidden = true;
-    ui.customise.textContent = state.customising ? 'Done' : 'Customise';
+    ui.customise.classList.toggle('jsc-active', state.customising);
+    ui.customise.setAttribute('aria-pressed', state.customising ? 'true' : 'false');
 
     // Auto-plan my tickets
     var pending = readPending();
     var placing = pending && pending.queue && pending.queue.length > 1;
     ui.plan.disabled = state.busy;
-    ui.plan.textContent = placing
-      ? 'Placing ' + (pending.index + 1) + ' of ' + pending.queue.length + ' · Stop'
-      : state.busy ? 'Planning…' : 'Auto-plan my tickets';
+    ui.plan.classList.toggle('jsc-stop', !!placing);
+    if (placing) setPlan('Placing ' + (pending.index + 1) + ' of ' + pending.queue.length + ' · Stop', 'stop');
+    else setPlan(state.busy ? 'Planning…' : 'Plan tasks', 'plan');
     var pool = state.settings.scope === 'all' || !state.sprint.length ? state.sprint.concat(state.other) : state.sprint;
     var inPool = pool.filter(function (t) { return !state.placed[t.key]; }).length;
     ui.planHelp.textContent = pool.length
@@ -622,6 +691,7 @@
     ui.setDrop = select('jsc-drop', [[30, '30 minutes'], [60, '1 hour'], [90, '1.5 hours'], [120, '2 hours']],
       function (v) { saveSettings({ dropMinutes: v }); });
     box.appendChild(field('A dropped ticket lasts', ui.setDrop));
+    box.appendChild(button('jsc-button jsc-quiet', 'Done', function () { state.customising = false; render(); }));
     return box;
   }
 
@@ -645,20 +715,31 @@
     var rgb = (getComputedStyle(document.body).backgroundColor.match(/\d+/g) || [255, 255, 255]).map(Number);
     if ((rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 < 110) ui.root.classList.add('jsc-dark');
 
-    ui.toggle = button('jsc-toggle', '', function () {
-      state.open = !state.open;
-      api.set({ jscOpen: state.open });
-      render();
-    });
+    // Folded away: a small tab with the logo brings the panel back.
+    ui.toggle = button('jsc-toggle', '', function () { setOpen(true); });
+    ui.toggle.title = 'Show Slotwise'; ui.toggle.setAttribute('aria-label', 'Show Slotwise');
+    ui.toggle.appendChild(logo(26));
     ui.root.appendChild(ui.toggle);
 
     var panel = el('div', 'jsc-panel');
-    var brand = el('div', 'jsc-title', 'Slotwise');
-    brand.appendChild(el('span', 'jsc-subtitle', 'Jira tickets'));
-    panel.appendChild(brand);
+    var head = el('div', 'jsc-head');
+    head.appendChild(logo(28));
+    head.appendChild(el('div', 'jsc-title', 'Slotwise'));
+    var tools = el('div', 'jsc-tools');
+    ui.refresh = iconButton('jsc-refresh', 'refresh', 'Refresh tickets', function () { loadTickets(); });
+    ui.customise = iconButton('jsc-customise', 'sliders', 'Customise', function () {
+      state.customising = !state.customising;
+      render();
+    });
+    tools.appendChild(ui.refresh);
+    tools.appendChild(ui.customise);
+    tools.appendChild(iconButton('jsc-collapse', 'chevron', 'Hide Slotwise', function () { setOpen(false); }));
+    head.appendChild(tools);
+    panel.appendChild(head);
 
     // First run: ask for the Jira address.
     ui.setup = el('form', 'jsc-setup');
+    ui.setup.appendChild(el('p', 'jsc-lead', 'Your Jira tickets, on your calendar.'));
     ui.setup.appendChild(el('label', 'jsc-label', 'Your Jira address'));
     var siteInput = el('input', 'jsc-input'); siteInput.id = 'jsc-site-input';
     siteInput.placeholder = 'your-team.atlassian.net'; siteInput.autocomplete = 'off';
@@ -689,7 +770,10 @@
     ui.search = el('input', 'jsc-input'); ui.search.id = 'jsc-search';
     ui.search.type = 'search'; ui.search.placeholder = 'Search tickets';
     ui.search.addEventListener('input', onSearchInput);
-    ui.main.appendChild(ui.search);
+    ui.searchWrap = el('div', 'jsc-search');
+    ui.searchWrap.appendChild(icon('search', 15));
+    ui.searchWrap.appendChild(ui.search);
+    ui.main.appendChild(ui.searchWrap);
     ui.status = el('div', 'jsc-status'); ui.status.hidden = true;
     ui.main.appendChild(ui.status);
     ui.signin = el('a', 'jsc-link', 'Open Jira to sign in, then press Refresh');
@@ -712,7 +796,8 @@
     ui.main.appendChild(ui.custom);
 
     var foot = el('div', 'jsc-foot');
-    ui.plan = button('jsc-button', 'Auto-plan my tickets', planSprint);
+    ui.plan = button('jsc-button jsc-plan', '', planSprint); ui.plan.id = 'jsc-plan';
+    setPlan('Plan tasks', 'plan');
     foot.appendChild(ui.plan);
     ui.planHelp = el('div', 'jsc-help');
     foot.appendChild(ui.planHelp);
@@ -752,17 +837,12 @@
     var row = el('div', 'jsc-foot-row');
     ui.site = el('span', 'jsc-site');
     row.appendChild(ui.site);
-    ui.customise = button('jsc-text-button', 'Customise', function () {
-      state.customising = !state.customising;
-      render();
-    });
-    row.appendChild(ui.customise);
-    row.appendChild(button('jsc-text-button', 'Refresh', loadTickets));
-    row.appendChild(button('jsc-text-button', 'Change', function () {
-      state.site = null; state.sprint = []; state.other = [];
+    var change = iconButton('jsc-change', 'edit', 'Change the Jira address', function () {
+      state.site = null; state.sprint = []; state.other = []; state.customising = false;
       api.set({ jscSite: null });
       render();
-    }));
+    });
+    row.appendChild(change);
     foot.appendChild(row);
     ui.forget = button('jsc-text-button', 'Clear the "on your calendar" marks', function () {
       state.placed = {};

@@ -59,7 +59,7 @@ browserTest('first run: asks for the address, refuses a wrong one, shows the sam
   await b.page.click('.jsc-setup button[type=submit]');
   assert.match((await text(b, '.jsc-setup .jsc-problem')).join(), /your-team\.atlassian\.net/);
   await useSite(b, '  DEMO ');
-  assert.deepEqual(await text(b, '.jsc-heading:visible'), ['This sprint (6)', 'Your other tickets (4)']);
+  assert.deepEqual(await text(b, '.jsc-heading:visible'), ['This sprint 6', 'Your other tickets 4']);
   assert.equal(await b.page.locator('.jsc-ticket.jsc-doing').count(), 2);
   assert.equal(await b.page.locator('.jsc-ticket.jsc-review').count(), 1);
   assert.equal(await b.page.locator('.jsc-ticket.jsc-todo').count(), 7);
@@ -69,19 +69,19 @@ browserTest('first run: asks for the address, refuses a wrong one, shows the sam
 browserTest('the address, the folded state and the settings survive a reload; Change asks again', {}, async (b) => {
   await useSite(b, 'https://Acme.atlassian.net/jira/software/projects/WEB/boards/7');
   assert.deepEqual(await text(b, '.jsc-site'), ['acme.atlassian.net']);
-  await b.page.click('button:text-is("Customise")');
+  await b.page.click('#jsc-customise');
   await b.page.selectOption('#jsc-drop', '90');
   await b.page.click('.jsc-day[title=Saturday]');
-  await b.page.click('.jsc-toggle');
+  await b.page.click('#jsc-collapse');
   await b.page.reload();
   await b.page.waitForSelector('#jsc-root.jsc-closed', { state: 'attached' });
   await b.page.click('.jsc-toggle');
   await until(() => b.page.locator('.jsc-ticket').count(), 'tickets after reload');
-  await b.page.click('button:text-is("Customise")');
+  await b.page.click('#jsc-customise');
   assert.equal(await b.page.inputValue('#jsc-drop'), '90');
   assert.equal(await b.page.getAttribute('.jsc-day[title=Saturday]', 'aria-pressed'), 'true');
   await b.page.click('button:text-is("Done")');
-  await b.page.click('button:text-is("Change")');
+  await b.page.click('#jsc-change');
   assert.equal(await b.page.locator('.jsc-setup').isVisible(), true);
 });
 
@@ -93,7 +93,7 @@ browserTest('the panel follows a dark calendar', { calendar: { dark: true } }, a
 
 browserTest('Jira: sprint tickets and other tickets are listed apart', {}, async (b) => {
   await useSite(b, 'acme.atlassian.net');
-  assert.deepEqual(await text(b, '.jsc-heading:visible'), ['This sprint (2)', 'Your other tickets (1)']);
+  assert.deepEqual(await text(b, '.jsc-heading:visible'), ['This sprint 2', 'Your other tickets 1']);
   assert.equal(await b.page.getAttribute('.jsc-key >> nth=0', 'href'), 'https://acme.atlassian.net/browse/WEB-1');
 });
 
@@ -120,8 +120,8 @@ browserTest('Jira: a failing search is reported, not shown as "no tickets"', { j
 
 browserTest('Jira: a site without sprints shows one list, and Auto-plan still works', { jira: { noSprints: true } }, async (b) => {
   await useSite(b, 'acme.atlassian.net');
-  assert.deepEqual(await text(b, '.jsc-heading:visible'), ['Your open tickets (3)']);
-  await b.page.click('text=Auto-plan my tickets');
+  assert.deepEqual(await text(b, '.jsc-heading:visible'), ['Your open tickets 3']);
+  await b.page.click('#jsc-plan');
   await until(async () => (await b.events()).length === 3, 'three events');
   await idle(b);
   assert.deepEqual((await b.events()).map((e) => e.title.split(' ')[0]).sort(), ['WEB-1', 'WEB-2', 'WEB-9']);
@@ -141,7 +141,7 @@ browserTest('search: filters the lists, finds more in Jira, and says when nothin
     await b.page.fill('#jsc-search', 'second');
     assert.deepEqual(await text(b, '.jsc-ticket .jsc-key'), ['WEB-2']);
     await b.page.fill('#jsc-search', 'rotate');
-    await until(async () => (await text(b, '.jsc-heading:visible')).join() === 'More from Jira (1)', 'the Jira result');
+    await until(async () => (await text(b, '.jsc-heading:visible')).join() === 'More from Jira 1', 'the Jira result');
     await b.page.fill('#jsc-search', 'fix (login" OR 1=1');
     await new Promise((r) => setTimeout(r, 700));
     await b.page.fill('#jsc-search', '');
@@ -220,7 +220,7 @@ browserTest('a second Google account: the event goes to that account and returns
 
 browserTest('the chosen length is used for a dropped ticket', {}, async (b) => {
   await useSite(b, 'demo');
-  await b.page.click('button:text-is("Customise")');
+  await b.page.click('#jsc-customise');
   await b.page.selectOption('#jsc-drop', '30');
   await b.page.click('button:text-is("Done")');
   await drag(b, 'APP-212', AT.tue10);
@@ -288,7 +288,7 @@ browserTest('Auto-plan: every sample ticket lands once, as day bars, then there 
   await drag(b, 'APP-198', AT.month10);                    // one by hand first
   await until(async () => (await b.events()).length === 1, 'the hand-placed event');
   await idle(b);
-  await b.page.click('text=Auto-plan my tickets');
+  await b.page.click('#jsc-plan');
   await until(async () => /Placing \d of 7/.test((await text(b, '#jsc-root button')).join()), 'the progress count', 20000);
   await until(async () => (await b.events()).length === 8, 'all eight events', 120000);
   await idle(b);
@@ -309,11 +309,11 @@ browserTest('Auto-plan: every sample ticket lands once, as day bars, then there 
 
 browserTest('Auto-plan follows Customise: left-out statuses are not planned', {}, async (b) => {
   await useSite(b, 'demo');
-  await b.page.click('button:text-is("Customise")');
+  await b.page.click('#jsc-customise');
   await b.page.fill('#jsc-skip', 'to do , In Review');
   await b.page.press('#jsc-skip', 'Tab');
   await b.page.click('button:text-is("Done")');
-  await b.page.click('text=Auto-plan my tickets');
+  await b.page.click('#jsc-plan');
   await until(async () => (await b.events()).length === 2, 'two events', 60000);
   await idle(b);
   assert.deepEqual((await b.events()).map((e) => e.title.split(' ')[0]).sort(), ['APP-198', 'APP-212']);
@@ -323,9 +323,9 @@ browserTest('Auto-plan with Jira unreachable says so and stays usable', { jira: 
   await b.page.fill('#jsc-site-input', 'acme.atlassian.net');
   await b.page.click('.jsc-setup button[type=submit]');
   await new Promise((r) => setTimeout(r, 1500));
-  await b.page.click('text=Auto-plan my tickets');
+  await b.page.click('#jsc-plan');
   await until(async () => (await text(b, '.jsc-note.jsc-problem:visible')).length, 'a problem note');
-  assert.equal(await b.page.locator('text=Auto-plan my tickets').isEnabled(), true);
+  assert.equal(await b.page.locator('#jsc-plan').isEnabled(), true);
 });
 
 // ---- After an update --------------------------------------------------------
@@ -335,9 +335,9 @@ browserTest('after the extension is updated, an open page says to reload instead
   const worker = b.context.serviceWorkers()[0];
   await worker.evaluate(() => chrome.runtime.reload()).catch(() => {});
   await new Promise((r) => setTimeout(r, 1500));
-  await b.page.click('button:text-is("Refresh")');
+  await b.page.click('#jsc-refresh');
   await until(async () => /Reload this page/.test((await text(b, '.jsc-status:visible')).join()), 'the reload message');
-  await b.page.click('text=Auto-plan my tickets');
+  await b.page.click('#jsc-plan');
   assert.deepEqual(await b.events(), []);
 });
 
@@ -345,7 +345,7 @@ browserTest('after the extension is updated, an open page says to reload instead
 
 browserTest('Auto-plan can be stopped part way; what was placed stays, and it can be finished later', { view: 'month' }, async (b) => {
   await useSite(b, 'demo');
-  await b.page.click('text=Auto-plan my tickets');
+  await b.page.click('#jsc-plan');
   await until(async () => (await b.events()).length >= 2, 'the first two events', 60000);
   await until(() => b.page.locator('button:has-text("Stop")').count(), 'the Stop button');
   await b.page.click('button:has-text("Stop")');
@@ -363,7 +363,7 @@ browserTest('Auto-plan can be stopped part way; what was placed stays, and it ca
 
 browserTest('Auto-plan carries on after the page is reloaded part way', {}, async (b) => {
   await useSite(b, 'demo');
-  await b.page.click('text=Auto-plan my tickets');
+  await b.page.click('#jsc-plan');
   await until(async () => (await b.events()).length >= 2, 'the first two events', 60000);
   await b.page.reload();
   await until(async () => (await b.events()).length === 8, 'all eight', 120000);
