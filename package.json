@@ -1,0 +1,10 @@
+{
+  "name": "jira-sprint-calendar",
+  "version": "1.0.0",
+  "description": "Show your Jira sprint tickets as all-day bars in Google Calendar.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  }
+}
