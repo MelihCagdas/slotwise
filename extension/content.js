@@ -399,7 +399,12 @@
     var running = readPending();
     if (running && running.queue && running.queue.length > 1) {
       // Pressed while placing: stop. What is already on the calendar stays.
-      clearPending();
+      // The queue is cut to nothing more to place, and the watcher takes the
+      // person back to the view they started in.
+      running.queue = [running.queue[running.index]]; running.index = 0;
+      running.stage = 'returning'; running.stopped = true; running.tries = 0; running.lastTry = 0;
+      running.at = Date.now();
+      writePending(running);
       setNote('Stopped. The tickets already placed stay on your calendar.');
       render();
       return;

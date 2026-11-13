@@ -343,7 +343,7 @@ browserTest('after the extension is updated, an open page says to reload instead
 
 // ---- Interruptions while Auto-plan is placing -------------------------------
 
-browserTest('Auto-plan can be stopped part way; what was placed stays, and it can be finished later', {}, async (b) => {
+browserTest('Auto-plan can be stopped part way; what was placed stays, and it can be finished later', { view: 'month' }, async (b) => {
   await useSite(b, 'demo');
   await b.page.click('text=Auto-plan my tickets');
   await until(async () => (await b.events()).length >= 2, 'the first two events', 60000);
@@ -352,6 +352,8 @@ browserTest('Auto-plan can be stopped part way; what was placed stays, and it ca
   await new Promise((r) => setTimeout(r, 6000));
   const after = (await b.events()).length;
   assert.ok(after < 8, 'it stopped at ' + after);
+  assert.match(b.page.url(), /\/r\/month$/, 'back in the view they started from');
+  assert.equal(await b.page.evaluate(() => sessionStorage.getItem('jsc-pending')), null);
   await b.page.click('#jsc-root .jsc-foot > .jsc-button');
   await until(async () => (await b.events()).length === 8, 'the rest', 120000);
   await idle(b);

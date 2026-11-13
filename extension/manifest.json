@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Slotwise for Jira",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Your Jira tickets in a panel beside Google Calendar. Search, drag one onto a slot, or auto-plan them across your week.",
   "permissions": [
     "storage",
