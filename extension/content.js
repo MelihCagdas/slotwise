@@ -2,7 +2,7 @@
  * Slotwise, the panel inside Google Calendar.
  *
  * The panel is the pool: your Jira tickets, coloured by status. Drag one
- * onto a day or an hour, or press "Auto-plan my tickets" to spread the tickets
+ * onto a day or an hour, or press "Plan tasks" to spread the tickets
  * that are still in the pool across the coming days. Either way they become ordinary
  * calendar events.
  *
@@ -87,7 +87,7 @@
   }
 
   // ---- Placing through Google's own new-event page --------------------------
-  // A drop, or "Auto-plan my tickets", becomes a queue of events. For each one the
+  // A drop, or "Plan tasks", becomes a queue of events. For each one the
   // watcher opens Google's new-event page filled in, presses Save, and moves
   // on; at the end it returns to the view the person was in. Progress is kept
   // in sessionStorage, so it carries on whether Google swaps the page in
@@ -393,7 +393,7 @@
     }, 350);
   }
 
-  // ---- Auto-plan my tickets -------------------------------------------------
+  // ---- Plan tasks -------------------------------------------------
 
   function planSprint() {
     var running = readPending();
@@ -601,7 +601,7 @@
     ui.customise.classList.toggle('jsc-active', state.customising);
     ui.customise.setAttribute('aria-pressed', state.customising ? 'true' : 'false');
 
-    // Auto-plan my tickets
+    // Plan tasks
     var pending = readPending();
     var placing = pending && pending.queue && pending.queue.length > 1;
     ui.plan.disabled = state.busy;
