@@ -64,7 +64,7 @@ export const Recording = () => {
   return (
     <AbsoluteFill style={{background: S.bg}}>
       <Audio src={staticFile('music/bed.mp3')} loop
-        volume={(f) => interpolate(f, [0, 15, RECORDING_FRAMES - 60, RECORDING_FRAMES - 4], [0, 0.22, 0.22, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})} />
+        volume={(f) => interpolate(f, [0, 15, RECORDING_FRAMES - 60, RECORDING_FRAMES - 4], [0, 0.1, 0.1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})} />
       {out}
     </AbsoluteFill>
   );

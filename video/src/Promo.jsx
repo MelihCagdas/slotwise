@@ -3,54 +3,48 @@ import {AbsoluteFill, Sequence, Audio, staticFile, useCurrentFrame, interpolate}
 import {C, tween, appear} from './theme';
 import {page, ui, shadow, sec, Clip, Tag, Fade, Mark, S, mono} from './shared';
 
-// The voice-over, line by line: [file, length in seconds, words shown on screen]
+// The voice-over, line by line: [file, length in seconds, key phrases].
+// A key phrase is [where in the line it is spoken (0 to 1), the words to show].
+// Only the phrases that matter appear on screen, not every word.
 const VO = {
-  hook: ['l1', 4.49, ''],
-  pain: ['l2', 6.41, "On a remote team, nobody sees you're heads-down. So an empty slot looks free, meetings pile on, and real work slips."],
-  name: ['l3', 1.20, ''],
-  pool: ['l4', 2.87, 'Your Jira tickets, right beside your Google Calendar.'],
-  drag: ['l5', 3.53, 'Search. Drag it onto a slot. Stretch it to fit.'],
-  plan: ['l6', 5.88, 'Or hit Auto-plan, and your whole week is laid out. Work in progress first, sized by story points.'],
-  team: ['l7', 6.03, "Every ticket is a real calendar event. So across time zones, your team sees what you're on, and when not to book you."],
-  values: ['l8', 3.60, ''],
-  start: ['l9', 3.94, ''],
+  hook: ['l1', 5.15, []],
+  pain: ['l2', 7.37, [[0.02, 'Nobody sees you are heads-down'], [0.40, 'An empty slot looks free'], [0.64, 'Meetings pile on'], [0.83, 'Real work slips']]],
+  name: ['l3', 1.15, []],
+  pool: ['l4', 3.06, [[0.05, 'Your tickets, beside your calendar']]],
+  drag: ['l5', 2.93, [[0.0, 'Search'], [0.22, 'Drag onto a slot'], [0.62, 'Stretch to fit']]],
+  plan: ['l6', 6.16, [[0.08, 'Auto-plan'], [0.30, 'Your whole week, laid out'], [0.58, 'Work in progress first'], [0.80, 'Sized by story points']]],
+  team: ['l7', 6.92, [[0.0, 'A real calendar event'], [0.42, 'Visible across time zones'], [0.76, 'They know when not to book you']]],
+  values: ['l8', 3.11, []],
+  start: ['l9', 3.71, []],
 };
 
 // Scene lengths in seconds.
-const LEN = {hook: 5.0, pain: 6.9, name: 2.0, pool: 3.4, drag: 4.4, plan: 7.0, team: 6.5, custom: 2.4, values: 4.4, start: 6.6};
+const LEN = {hook: 5.9, pain: 8.0, name: 2.2, pool: 4.0, drag: 4.6, plan: 7.2, team: 7.6, custom: 2.8, values: 4.4, start: 6.8};
 export const PROMO_FRAMES = sec(Object.values(LEN).reduce((a, b) => a + b, 0));
 
 const rise = (f, at, len = 10) => ({opacity: appear(f, at, len), transform: `translateY(${(1 - appear(f, at, len)) * 12}px)`});
 
 /**
- * Plays one voice-over line. With words to show, they darken as they are
- * spoken, and the calendar's red "now" line runs underneath, keeping time.
+ * Plays one voice-over line and flashes up its key phrases as they are
+ * spoken, one at a time, marked with the calendar's red "now" dot.
  */
-const Say = ({line, at = 0.2, bottom = 44, size = 40}) => {
+const Say = ({line, at = 0.2, bottom = 56, size = 54}) => {
   const f = useCurrentFrame();
-  const [file, seconds, text] = VO[line];
+  const [file, seconds, keys] = VO[line];
   const audio = <Sequence from={sec(at)}><Audio src={staticFile(`vo/${file}.mp3`)} /></Sequence>;
-  if (!text) return audio;
-  const words = text.split(' ');
-  const total = text.length;
-  const progress = tween(f, sec(at), sec(at) + sec(seconds), 0, 1, (t) => t);
-  let seen = 0;
+  if (!keys.length) return audio;
+  const starts = keys.map(([where]) => sec(at) + where * sec(seconds));
+  let current = -1;
+  starts.forEach((start, i) => { if (f >= start) current = i; });
+  if (current === -1) return audio;
+  const a = appear(f, starts[current], 7);
   return (
     <>
       {audio}
-      <div style={{position: 'absolute', left: 260, right: 260, bottom, textAlign: 'center'}}>
-        <div style={{fontSize: size, fontWeight: 500, letterSpacing: -0.6, lineHeight: 1.28}}>
-          {words.map((w, i) => {
-            const start = sec(at) + (seen / total) * sec(seconds) * 0.95;
-            seen += w.length + 1;
-            return <span key={i} style={{color: f >= start ? S.ink : S.muted, marginRight: '0.26em', display: 'inline-block'}}>{w}</span>;
-          })}
-        </div>
-        <div style={{position: 'relative', height: 12, marginTop: 16}}>
-          <div style={{position: 'absolute', left: 0, right: 0, top: 5, height: 1, background: S.line}} />
-          <div style={{position: 'absolute', left: 0, top: 4, height: 3, width: `${progress * 100}%`, background: S.now}} />
-          <div style={{position: 'absolute', left: `${progress * 100}%`, top: 0, width: 11, height: 11, marginLeft: -5, borderRadius: 6, background: S.now}} />
-        </div>
+      <div style={{position: 'absolute', left: 0, right: 0, bottom, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20,
+        opacity: a, transform: `translateY(${(1 - a) * 10}px)`}}>
+        <span style={{width: 14, height: 14, borderRadius: 7, background: S.now, flexShrink: 0}} />
+        <span style={{fontSize: size, fontWeight: 600, letterSpacing: -1.6}}>{keys[current][1]}</span>
       </div>
     </>
   );
@@ -71,16 +65,16 @@ const Ticket = ({k, summary, status, kind}) => (
 // 1. Jira and the calendar never meet. The red line between them is the gap.
 const Hook = () => {
   const f = useCurrentFrame();
-  const apart = tween(f, 100, 126, 0, 96);
+  const apart = tween(f, 118, 144, 0, 96);
   const card = {...ui, position: 'absolute', top: 500, width: 520, height: 320, background: S.surface, borderRadius: 16,
     border: `1px solid ${S.line}`, boxShadow: shadow, padding: 24, boxSizing: 'border-box'};
-  const gap = tween(f, 104, 128, 0, 1);
+  const gap = tween(f, 122, 146, 0, 1);
   return (
     <AbsoluteFill style={page}>
       <div style={{position: 'absolute', left: 0, right: 0, top: 96, textAlign: 'center'}}>
         <div style={{fontSize: 56, fontWeight: 500, letterSpacing: -1.4, color: S.secondary, ...rise(f, 8)}}>Jira knows what you promised</div>
-        <div style={{fontSize: 56, fontWeight: 500, letterSpacing: -1.4, color: S.secondary, marginTop: 8, ...rise(f, 48)}}>Your calendar knows where your time goes</div>
-        <div style={{fontSize: 120, fontWeight: 600, letterSpacing: -4.5, marginTop: 20, color: S.brand, ...rise(f, 102, 8)}}>They never meet</div>
+        <div style={{fontSize: 56, fontWeight: 500, letterSpacing: -1.4, color: S.secondary, marginTop: 8, ...rise(f, 60)}}>Your calendar knows where your time goes</div>
+        <div style={{fontSize: 120, fontWeight: 600, letterSpacing: -4.5, marginTop: 20, color: S.brand, ...rise(f, 119, 8)}}>They never meet</div>
       </div>
       <div style={{...card, left: 420 - apart, opacity: appear(f, 10, 10)}}>
         <div style={{fontWeight: 600, fontSize: 20, marginBottom: 12}}>Sprint board</div>
@@ -88,7 +82,7 @@ const Hook = () => {
         <Ticket k="APP-198" summary="Fix export bug" status="In Progress" kind="doing" />
         <Ticket k="APP-205" summary="Search filters" status="In Review" kind="review" />
       </div>
-      <div style={{...card, left: 980 + apart, opacity: appear(f, 50, 10)}}>
+      <div style={{...card, left: 980 + apart, opacity: appear(f, 62, 10)}}>
         <div style={{fontWeight: 600, fontSize: 20, marginBottom: 12}}>This week</div>
         <div style={{display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, height: 228}}>
           {[[12, 40], [68, 60], [32, 48], [100, 60], [52, 40]].map(([top, h], i) => (
@@ -112,8 +106,8 @@ const Pain = () => {
   const f = useCurrentFrame();
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   const W = 248, HH = 60, X0 = 340, Y0 = 132;
-  const meetings = [[0, 1, 1, 'Standup', 0], [3, 2, 1.5, 'Customer call', 0], [1, 1.5, 1.5, 'Quick sync?', 104], [1, 3, 1, 'Catch-up', 116], [2, 2, 1.5, 'Planning review', 124], [1, 0.4, 1, 'Got 5 mins?', 132]];
-  const pushed = tween(f, 142, 166, 0, 1);
+  const meetings = [[0, 1, 1, 'Standup', 0], [3, 2, 1.5, 'Customer call', 0], [1, 1.5, 1.5, 'Quick sync?', 146], [1, 3, 1, 'Catch-up', 158], [2, 2, 1.5, 'Planning review', 166], [1, 0.4, 1, 'Got 5 mins?', 174]];
+  const pushed = tween(f, 192, 216, 0, 1);
   return (
     <AbsoluteFill style={page}>
       <div style={{position: 'absolute', left: X0 - 20, top: 44, width: 5 * W + 40, height: 612, background: S.surface, borderRadius: 16,
@@ -140,7 +134,7 @@ const Pain = () => {
             border: `1px solid ${S.surface}`, opacity: a, transform: `translateY(${(1 - a) * -12}px)`}}>{label}</div>
         );
       })}
-      <Say line="pain" bottom={64} />
+      <Say line="pain" bottom={110} />
     </AbsoluteFill>
   );
 };
@@ -164,7 +158,7 @@ const Name = () => {
 const Shot = ({line, children}) => (
   <AbsoluteFill style={page}>
     {children}
-    <Say line={line} at={0.15} bottom={36} size={38} />
+    <Say line={line} at={0.2} bottom={64} size={50} />
   </AbsoluteFill>
 );
 
@@ -175,7 +169,7 @@ const Cut = ({from, length, children}) => (
 // 8. The three promises, laid out the way the product lays out work: as slots in a day.
 const Values = () => {
   const f = useCurrentFrame();
-  const rows = [['09:00', 'Transparency first', 8], ['10:00', 'Respect for time', 44], ['11:00', 'Real focus', 78]];
+  const rows = [['09:00', 'Transparency first', 6], ['10:00', 'Respect for time', 40], ['11:00', 'Real focus', 73]];
   const X = 420, Y = 276, RH = 176;
   return (
     <AbsoluteFill style={page}>
@@ -197,7 +191,7 @@ const Values = () => {
 
 const Start = () => {
   const f = useCurrentFrame();
-  const facts = [['No token', 8], ['No server', 30], ['Free and open source', 52]];
+  const facts = [['No token', 6], ['No server', 28], ['Free and open source', 53]];
   return (
     <AbsoluteFill style={{...page, alignItems: 'center', justifyContent: 'center'}}>
       <div style={{display: 'flex', alignItems: 'center', gap: 28, ...rise(f, 0, 8)}}>
@@ -212,7 +206,7 @@ const Start = () => {
           </div>
         ))}
       </div>
-      <div style={{marginTop: 64, fontFamily: mono, fontSize: 40, color: S.surface, background: S.brand, padding: '20px 40px', borderRadius: 12, ...rise(f, 96, 10)}}>
+      <div style={{marginTop: 64, fontFamily: mono, fontSize: 40, color: S.surface, background: S.brand, padding: '20px 40px', borderRadius: 12, ...rise(f, 88, 10)}}>
         github.com/MelihCagdas/slotwise
       </div>
       <Say line="start" />
@@ -231,35 +225,35 @@ export const Promo = () => {
   add('hook', <Hook />);
   add('pain', <Pain />);
   add('name', <Name />);
-  add('pool', <Shot line="pool"><Clip name="c1" rate={1.3} zoom={1.14} focus={[0.86, 0.3]} length={sec(LEN.pool)} /></Shot>);
+  add('pool', <Shot line="pool"><Clip name="c1" rate={1.1} zoom={1.14} focus={[0.86, 0.3]} length={sec(LEN.pool)} /></Shot>);
   add('drag', (
     <Shot line="drag">
-      <Cut from={0} length={1.3}><Clip name="c2" from={0.6} rate={3.0} zoom={1.3} focus={[0.88, 0.12]} length={36} /></Cut>
-      <Cut from={1.3} length={1.6}><Clip name="c3" from={0.3} rate={2.2} /></Cut>
-      <Cut from={2.9} length={1.5}><Clip name="c4b" from={1.0} rate={2.6} zoom={1.35} focus={[0.36, 0.45]} length={40} /></Cut>
+      <Cut from={0} length={1.05}><Clip name="c2" from={1.2} rate={2.6} zoom={1.3} focus={[0.88, 0.12]} length={30} /></Cut>
+      <Cut from={1.05} length={1.15}><Clip name="c3" from={0.3} rate={3.0} /></Cut>
+      <Cut from={2.2} length={2.4}><Clip name="c4b" from={0.6} rate={1.8} zoom={1.35} focus={[0.36, 0.45]} length={60} /></Cut>
     </Shot>
   ));
   add('plan', (
     <Shot line="plan">
-      <Cut from={0} length={1.3}><Clip name="c6" from={0.3} rate={1.6} zoom={1.25} focus={[0.88, 0.85]} length={36} /></Cut>
-      <Cut from={1.3} length={2.2}>
+      <Cut from={0} length={1.5}><Clip name="c6" from={0.3} rate={1.4} zoom={1.25} focus={[0.88, 0.85]} length={42} /></Cut>
+      <Cut from={1.5} length={2.2}>
         <Clip name="c6b" rate={26} width={380} ratio={1002 / 460} top={44} />
         <Tag left={1180} top={64}>Sped up</Tag>
       </Cut>
-      <Cut from={3.5} length={3.5}><Clip name="c7" from={7.6} rate={2.2} zoom={1.08} focus={[0.3, 0.1]} length={sec(3.5)} /></Cut>
+      <Cut from={3.7} length={3.5}><Clip name="c7" from={7.6} rate={2.2} zoom={1.08} focus={[0.3, 0.1]} length={sec(3.5)} /></Cut>
     </Shot>
   ));
   add('team', (
     <Shot line="team">
-      <Clip name="c8" from={1.0} rate={1.4} ratio={510 / 1520} top={220} zoom={1.05} focus={[0.3, 0.3]} length={sec(LEN.team)} />
+      <Clip name="c8" from={1.0} rate={1.0} ratio={510 / 1520} top={220} zoom={1.05} focus={[0.3, 0.3]} length={sec(LEN.team)} />
       <Tag left={276} top={160}>Month view</Tag>
     </Shot>
   ));
   add('custom', (
     <AbsoluteFill style={page}>
-      <Clip name="c5" from={0.8} rate={5.2} zoom={1.35} focus={[0.9, 0.35]} length={sec(LEN.custom)} />
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: 64, textAlign: 'center', fontSize: 40, fontWeight: 500, letterSpacing: -0.6}}>
-        Set your working days, your statuses, sprint or no sprint
+      <Clip name="c5" from={0.8} rate={4.4} zoom={1.35} focus={[0.9, 0.35]} length={sec(LEN.custom)} />
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: 64, textAlign: 'center', fontSize: 50, fontWeight: 600, letterSpacing: -1.6}}>
+        Customise how it plans
       </div>
     </AbsoluteFill>
   ));
@@ -268,7 +262,7 @@ export const Promo = () => {
   return (
     <AbsoluteFill style={{background: S.bg}}>
       <Audio src={staticFile('music/bed.mp3')}
-        volume={(f) => interpolate(f, [0, 12, PROMO_FRAMES - 50, PROMO_FRAMES - 4], [0, 0.2, 0.2, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})} />
+        volume={(f) => interpolate(f, [0, 12, PROMO_FRAMES - 50, PROMO_FRAMES - 4], [0, 0.07, 0.07, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})} />
       {out}
     </AbsoluteFill>
   );
