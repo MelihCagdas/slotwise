@@ -82,7 +82,7 @@ const Box = ({children, glow}) => (
 
 /** The panel. `open` 0..1, `custom` 0..1 (the settings showing), `placed` {key: 0..1}. */
 const Panel = ({open = 1, query = '', placed = {}, hover = -1, custom = 0, saturday = false, dropLen = '1 hour', dropGlow,
-  plan = 'Plan tasks', stop, help = '5 tickets are not on your calendar yet.', pressed = 0, typing}) => {
+  plan = 'Plan tasks', stop, help = '5 tickets are not on your calendar yet.', pressed = 0, typing, override = {}}) => {
   const shown = TICKETS.filter((t) => !query || t[1].toLowerCase().includes(query.toLowerCase()));
   return (
     <>
@@ -118,7 +118,7 @@ const Panel = ({open = 1, query = '', placed = {}, hover = -1, custom = 0, satur
             <span style={{background: SOFT, borderRadius: 12, padding: '2px 9px', fontSize: 14}}>{shown.length}</span>
           </div>
           <div style={{display: 'flex', flexDirection: 'column', gap: 8, height: 470, overflow: 'hidden'}}>
-            {shown.map((t, i) => <TicketCard key={t[0]} t={t} placed={(placed[t[0]] || 0) > 0.5} hover={hover === i} />)}
+            {shown.map((t, i) => <TicketCard key={t[0]} t={override[t[0]] ? [t[0], t[1], ...override[t[0]]] : t} placed={(placed[t[0]] || 0) > 0.5} hover={hover === i} />)}
           </div>
         </div>
 
@@ -426,6 +426,72 @@ export const CustomDemo = ({part}) => {
       {week}
       <Panel placed={allPlaced} open={1 - tween(f, 24, 40, 0, 1)} help="Every ticket is on your calendar." />
       <Pointer x={p.x} y={p.y} click={click(f, 22)} />
+    </Stage>
+  );
+};
+
+/** A meeting lands on a ticket and the organiser gets a heads-up; then Jira changes and the plan follows. */
+export const HeadsDemo = () => {
+  const f = useCurrentFrame();
+  const allPlaced = {'APP-212': 1, 'APP-198': 1, 'APP-205': 1, 'APP-220': 1, 'APP-231': 1};
+  const block = {col: 2, start: 10, hours: 2.5, title: 'APP-212 Checkout redesign', label: '10:00 – 12:30', a: 1};
+  const second = tween(f, 132, 146, 0, 1);
+
+  // Part one: the invitation, then the note to the person who sent it.
+  const invite = appear(f, 14, 10);
+  const note = appear(f, 62, 12);
+  const line = tween(f, 46, 66, 0, 1);
+  const from = [colX(3) - 6, hourY(11.5)];
+  const to = [colX(4) + 30, hourY(13) + 40];
+
+  // Part two: a ticket moves to In Progress in Jira, and its bar moves ahead.
+  const moved = tween(f, 168, 192, 0, 1);
+  const flip = f >= 160;
+  const bars = [
+    {col: 1, span: 1, title: 'APP-198 Fix export bug (1 pt)', a: 1},
+    {col: 2 + 2 * moved, span: 1, title: 'APP-205 Search filters (1 pt)', a: 1},
+    {col: 3 - moved, span: 2, title: 'APP-220 Audit log (3 pt)', a: 1},
+  ];
+  return (
+    <Stage zoom={tween(f, 0, 40, 1, 1.1) - 0.1 * second} focus={[colX(3.5), hourY(12)]}>
+      <div style={{opacity: 1 - second}}>
+        <Week events={[block]} />
+        <div style={{position: 'absolute', left: colX(2) + colW * 0.45, width: colW * 0.55 - 8, top: hourY(11) + 2, height: HOUR - 4, boxSizing: 'border-box',
+          background: '#fff', border: `2px dashed ${BLUE}`, borderRadius: 8, padding: '6px 10px', color: BLUE,
+          opacity: invite, transform: `translateY(${(1 - invite) * -18}px)`, boxShadow: '0 4px 12px rgba(9,30,66,.18)'}}>
+          <div style={{fontSize: 14.5, fontWeight: 600}}>Roadmap sync</div>
+          <div style={{fontSize: 13}}>11:00 – 12:00 · Ana</div>
+        </div>
+        <svg width={W} height={H} style={{position: 'absolute', left: 0, top: 0}}>
+          <line x1={from[0]} y1={from[1]} x2={from[0] + (to[0] - from[0]) * line} y2={from[1] + (to[1] - from[1]) * line}
+            stroke={BLUE} strokeWidth={3} strokeDasharray="2 9" strokeLinecap="round" opacity={line > 0 ? 1 : 0} />
+        </svg>
+        <div style={{position: 'absolute', left: colX(4) - 30, top: hourY(13) + 20, width: 470, boxSizing: 'border-box', padding: '18px 20px', background: '#fff',
+          border: `1px solid ${LINE}`, borderRadius: 18, boxShadow: '0 14px 34px rgba(9,30,66,.2)', color: INK,
+          opacity: note, transform: `translateY(${(1 - note) * 16}px)`}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12}}>
+            <span style={{width: 38, height: 38, borderRadius: 19, background: '#fbbc04', color: INK, display: 'grid', placeItems: 'center', fontSize: 18, fontWeight: 600}}>A</span>
+            <div style={{flex: 1}}>
+              <div style={{fontSize: 17, fontWeight: 600}}>Ana, who sent the invite</div>
+              <div style={{fontSize: 14, color: MUTED}}>Note on your reply · Roadmap sync</div>
+            </div>
+            <Mark size={30} />
+          </div>
+          <div style={{fontSize: 18, lineHeight: 1.4, background: '#e9f2ff', borderRadius: 12, padding: '12px 14px'}}>
+            Heads-up: I have <b>APP-212 Checkout redesign</b> planned 10:00 to 12:30 then. I can still join if it is needed.
+          </div>
+        </div>
+      </div>
+      <div style={{opacity: second}}>
+        <Week bars={bars} events={[block]} />
+        <Panel placed={allPlaced} help="Every ticket is on your calendar." override={flip ? {'APP-220': ['In Progress', 'doing']} : {}} />
+        <div style={{position: 'absolute', left: colX(1) + 10, top: hourY(14), display: 'flex', alignItems: 'center', gap: 12, background: INK, color: '#fff',
+          borderRadius: 14, padding: '13px 18px', fontSize: 18, fontWeight: 500, opacity: Math.min(appear(f, 150, 8), 1 - appear(f, 216, 10)),
+          boxShadow: '0 10px 26px rgba(9,30,66,.28)'}}>
+          <span style={{width: 12, height: 12, borderRadius: 6, background: '#579dff'}} />
+          Jira: APP-220 moved to In Progress
+        </div>
+      </div>
     </Stage>
   );
 };

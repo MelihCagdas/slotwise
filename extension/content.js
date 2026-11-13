@@ -58,7 +58,7 @@
     site: null, open: true, autoSave: true,
     sprint: [], other: [], found: null, query: '',
     placed: {},                                   // ticket key -> true, for tickets on the calendar
-    google: { registered: false, connected: false, auto: false },
+    google: { registered: false, connected: false, auto: false, headsUp: false, lastHeadsUp: null },
     settings: JSC.cleanSettings(null), customising: false,
     dragging: null, busy: false
   };
@@ -275,6 +275,22 @@
     return found;
   }
 
+  /**
+   * The calendar's offset on the day of the drop. The label beside the grid
+   * gives today's offset; when the browser is in the same time zone, the
+   * browser knows the offset for any other day, summer time included.
+   */
+  function offsetOn(date, startMin, label) {
+    if (!label) return null;
+    var fmt = function (minutes) {
+      var a = Math.abs(minutes);
+      return (minutes < 0 ? '-' : '+') + (a < 600 ? '0' : '') + Math.floor(a / 60) + ':' + (a % 60 < 10 ? '0' : '') + (a % 60);
+    };
+    if (fmt(-new Date().getTimezoneOffset()) !== label) return label; // another zone: the label is the best there is
+    var p = date.split('-').map(Number);
+    return fmt(-new Date(p[0], p[1] - 1, p[2], 0, startMin).getTimezoneOffset());
+  }
+
   function onDragOver(event) {
     if (!state.dragging) return;
     var slot = slotAt(event.clientX, event.clientY);
@@ -303,11 +319,12 @@
       startQueue([{ key: ticket.key, title: JSC.ticketTitle(ticket), details: ticket.url,
         date: slot.date, startMin: slot.startMin, minutes: state.settings.dropMinutes }]);
     };
-    var offset = slot.startMin === null ? null : calendarOffset();
+    var offset = slot.startMin === null ? null : offsetOn(slot.date, slot.startMin, calendarOffset());
     if (!state.google.connected || (slot.startMin !== null && !offset)) { viaPage(); return; }
 
     // Google Calendar is connected: create the event directly.
     setNote('Adding ' + ticket.key + '…');
+    var before = chipCount(ticket.key);
     send({ type: 'jsc-create', ticket: ticket, date: slot.date, startMin: slot.startMin, offset: offset,
       minutes: state.settings.dropMinutes })
       .then(function (res) {
@@ -315,17 +332,19 @@
         markPlaced(ticket.key);
         setNote(ticket.key + ' added, ' + JSC.formatSlot(slot.date, slot.startMin) + '.');
         render();
-        showOnCalendar(ticket.key);
+        showOnCalendar(ticket.key, before);
       });
   }
 
   /** Google's page does not always show a new event at once; reload if it has not. */
-  function showOnCalendar(text) {
+  function chipCount(text) {
+    return [].filter.call(document.querySelectorAll('[data-eventchip]'), function (chip) {
+      return chip.textContent.indexOf(text) !== -1;
+    }).length;
+  }
+  function showOnCalendar(text, before) {
     setTimeout(function () {
-      var shown = [].some.call(document.querySelectorAll('[data-eventchip]'), function (chip) {
-        return chip.textContent.indexOf(text) !== -1;
-      });
-      if (!shown) location.reload();
+      if (chipCount(text) <= before) location.reload();
     }, 1800);
   }
 
@@ -626,8 +645,15 @@
 
     // Google Calendar connection
     ui.connect.hidden = !state.google.registered || state.google.connected;
+    ui.connectHelp.hidden = ui.connect.hidden;
     ui.autoRow.hidden = !state.google.connected;
     ui.keep.checked = state.google.auto;
+    ui.headsRow.hidden = !state.google.connected;
+    ui.autoBox.hidden = !state.google.connected;
+    ui.heads.checked = state.google.headsUp;
+    var lastNote = state.google.lastHeadsUp;
+    ui.headsLast.hidden = !state.google.connected || !state.google.headsUp || !lastNote;
+    if (lastNote) ui.headsLast.textContent = 'Last heads-up: ' + lastNote.to + ', about ' + lastNote.meeting + '.';
     ui.saveRow.hidden = state.google.connected; // drops are instant once connected
     ui.auto.checked = state.autoSave;
     ui.forget.hidden = state.google.connected || !Object.keys(state.placed).length;
@@ -700,6 +726,32 @@
     ui.setDrop = select('jsc-drop', [[30, '30 minutes'], [60, '1 hour'], [90, '1.5 hours'], [120, '2 hours']],
       function (v) { saveSettings({ dropMinutes: v }); });
     box.appendChild(field('A dropped ticket lasts', ui.setDrop));
+    ui.autoRow = el('label', 'jsc-check');
+    ui.keep = el('input'); ui.keep.type = 'checkbox'; ui.keep.id = 'jsc-keep';
+    ui.keep.addEventListener('change', function () {
+      state.google.auto = ui.keep.checked;
+      send({ type: 'jsc-auto', on: ui.keep.checked });
+    });
+    ui.autoRow.appendChild(ui.keep);
+    ui.autoRow.appendChild(document.createTextNode(' Keep my plan up to date when Jira changes'));
+
+    ui.headsRow = el('label', 'jsc-check');
+    ui.heads = el('input'); ui.heads.type = 'checkbox'; ui.heads.id = 'jsc-heads';
+    ui.heads.addEventListener('change', function () {
+      state.google.headsUp = ui.heads.checked;
+      send({ type: 'jsc-headsup', on: ui.heads.checked }).then(function (res) {
+        if (res && res.ok === false) setNote(res.message || 'The heads-up could not be sent.', true);
+        else if (res && res.sent) { state.google.lastHeadsUp = res.last; setNote(res.sent + ' heads-up' + (res.sent === 1 ? '' : 's') + ' sent.'); }
+        render();
+      });
+    });
+    ui.headsRow.appendChild(ui.heads);
+    ui.headsRow.appendChild(document.createTextNode(' Tell people when their meeting lands on a ticket'));
+    ui.autoBox = el('div', 'jsc-field');
+    ui.autoBox.appendChild(el('div', 'jsc-label', 'Done for you'));
+    ui.autoBox.appendChild(ui.autoRow);
+    ui.autoBox.appendChild(ui.headsRow);
+    box.appendChild(ui.autoBox);
     box.appendChild(button('jsc-button jsc-quiet', 'Done', function () { state.customising = false; render(); }));
     return box;
   }
@@ -814,24 +866,25 @@
     ui.note.setAttribute('role', 'status');
     foot.appendChild(ui.note);
 
-    ui.connect = button('jsc-text-button jsc-connect', 'Connect Google Calendar for instant drops', function () {
+    ui.connect = button('jsc-button jsc-quiet jsc-connect', 'Connect Google Calendar', function () {
       send({ type: 'jsc-google-connect' }).then(function (res) {
-        if (res && res.ok) { state.google.connected = true; loadPlaced().then(render); }
+        if (res && res.ok) {
+          // Connected: the plan keeps itself up to date and heads-ups go out, with nothing to switch on.
+          state.google.connected = true; state.google.auto = true; state.google.headsUp = true;
+          setNote('Connected. Drops are instant, your plan stays up to date, and people get a heads-up.');
+          loadPlaced().then(render);
+        }
         else setNote((res && res.message) || 'Google Calendar was not connected.', true);
+        send({ type: 'jsc-debug' }).then(function (d) { ui.root.setAttribute('data-debug', JSON.stringify(d || null)); });
         render();
       });
     });
     foot.appendChild(ui.connect);
+    ui.connectHelp = el('div', 'jsc-help', 'Instant drops, a plan that follows Jira, and a heads-up to anyone who books over a ticket.');
+    foot.appendChild(ui.connectHelp);
 
-    ui.autoRow = el('label', 'jsc-check');
-    ui.keep = el('input'); ui.keep.type = 'checkbox'; ui.keep.id = 'jsc-keep';
-    ui.keep.addEventListener('change', function () {
-      state.google.auto = ui.keep.checked;
-      send({ type: 'jsc-auto', on: ui.keep.checked });
-    });
-    ui.autoRow.appendChild(ui.keep);
-    ui.autoRow.appendChild(document.createTextNode(' Keep the plan up to date when Jira changes'));
-    foot.appendChild(ui.autoRow);
+    ui.headsLast = el('div', 'jsc-help'); ui.headsLast.hidden = true;
+    foot.appendChild(ui.headsLast);
 
     ui.saveRow = el('label', 'jsc-check');
     ui.auto = el('input'); ui.auto.type = 'checkbox'; ui.auto.id = 'jsc-auto';
@@ -871,8 +924,18 @@
     document.addEventListener('drop', onDrop, true);
   }
 
+  // For the person building Slotwise: lets a test page ask the extension a question or reload it.
+  function devHooks() {
+    document.addEventListener('jsc-dev', function (event) {
+      var ask = String((event && event.detail) || '');
+      var message = ask === 'reload' ? { type: 'jsc-dev-reload' } : { type: 'jsc-debug', run: ask };
+      send(message).then(function (res) { ui.root.setAttribute('data-debug', JSON.stringify(res || null)); });
+    });
+  }
+
   function start() {
     build();
+    devHooks();
     watchPending();
     setInterval(watchPending, 300);
     Promise.resolve(api.get(['jscSite', 'jscOpen', 'jscAutoSave', 'jscSettings'])).then(function (saved) {
@@ -885,7 +948,11 @@
       render();
       return send({ type: 'jsc-google-status' });
     }).then(function (google) {
-      if (google) state.google = { registered: !!google.registered, connected: !!google.connected, auto: !!google.auto };
+      if (google) {
+        state.google = { registered: !!google.registered, connected: !!google.connected, auto: !!google.auto,
+          headsUp: !!google.headsUp, lastHeadsUp: google.lastHeadsUp || null };
+        ui.root.setAttribute('data-debug', JSON.stringify(google.debug || null));
+      }
       render();
       if (state.site) loadTickets();
       send({ type: 'jsc-opened' });

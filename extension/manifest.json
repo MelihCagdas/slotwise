@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Slotwise for Jira",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Your Jira tickets in a panel beside Google Calendar. Search, drag one onto a slot, or auto-plan them across your week.",
   "permissions": [
     "storage",
@@ -44,10 +44,10 @@
   ],
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqBE09OL5nRSop2Mgo2uUMZjDkzUTjxZaHrSimEoCmnPTrG1toSf9hv89PU4e/513cSdCeQjch/zGRFRhpUz/+vYYwgrT6VEgCBQ+3gX8N4LiYHAuWolcTvQnm7hCK89Edi18FQVN8uWMPR0aVpbz67GTY6CL9AoXRU2JzJSEcBIT1qaU5MvZRU/LLGUuG6q99J8e+4IHLWXw61l00jeOi3XOlzbZ3Tkaw5x0kNyiMOIxQxMYUGxnRkVbJex1ShoSIEkEw+DSm+RluFEH3k7sx8eSj0dUb23wInk1nvEwn1NbQmHwpCNTwKpZrsgqM90YgYsQ5AmLg4c2tgIvxKHifQIDAQAB",
   "oauth2": {
-    "client_id": "REPLACE_WITH_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+    "client_id": "667331001306-35rib4gvca8u218gnlv2lrunpbtss2tv.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/calendar.app.created",
-      "https://www.googleapis.com/auth/calendar.events.owned"
+      "https://www.googleapis.com/auth/calendar.events"
     ]
   },
   "icons": {

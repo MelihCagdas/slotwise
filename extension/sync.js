@@ -174,6 +174,65 @@ function demoResponse(path, now) {
   return ok({ issues: found });
 }
 
+// ---- Heads-up: a meeting has landed on a ticket ----------------------------
+
+var TICKET_TITLE = /^[A-Z][A-Z0-9_]+-\d+\b/;
+
+/** True for an event the person put on their own calendar for a ticket. */
+function isTicketBlock(e) {
+  if (!e || e.status === 'cancelled' || !e.start || !e.start.dateTime) return false; // all-day bars never clash
+  var tags = (e.extendedProperties && e.extendedProperties.private) || {};
+  if (tags.jscManual === '1') return true;
+  // Placed through Google's own page: no tag, so go by the title, on an event that is theirs alone.
+  var others = (e.attendees || []).filter(function (a) { return !a.self; });
+  var mine = !e.organizer || e.organizer.self;
+  return mine && !others.length && TICKET_TITLE.test(String(e.summary || ''));
+}
+
+/** True for an invitation from someone else that the person has not answered. */
+function isOpenInvite(e) {
+  if (!e || e.status === 'cancelled' || !e.start || !e.start.dateTime) return false;
+  if (!e.organizer || e.organizer.self) return false;
+  return (e.attendees || []).some(function (a) { return a.self && a.responseStatus === 'needsAction' && !a.comment; });
+}
+
+/**
+ * Pairs each unanswered invitation with the first ticket block it overlaps.
+ * `done` holds the ids already handled. Returns [{invite, ticket}].
+ */
+function findClashes(events, done) {
+  var blocks = (events || []).filter(isTicketBlock);
+  var at = function (e, side) { return new Date(e[side].dateTime).getTime(); };
+  var out = [];
+  (events || []).filter(isOpenInvite).forEach(function (invite) {
+    if (done && done[invite.id]) return;
+    var hit = null;
+    blocks.forEach(function (b) {
+      if (!hit && at(invite, 'start') < at(b, 'end') && at(invite, 'end') > at(b, 'start')) hit = b;
+    });
+    if (hit) out.push({ invite: invite, ticket: hit });
+  });
+  return out;
+}
+
+/** The note the organiser reads. Times are as the calendar shows them. */
+function headsUpNote(ticket) {
+  var clock = function (side) { return String(ticket[side].dateTime).slice(11, 16); };
+  return 'Heads-up: I have ' + String(ticket.summary || 'focus work').trim() + ' planned ' + clock('start') + ' to ' + clock('end') +
+    ' then. I can still join if it is needed. (Sent by Slotwise)';
+}
+
+/** The guest list with the note added to the person's own entry. Nothing else changes. */
+function withNote(attendees, note) {
+  return (attendees || []).map(function (a) {
+    if (!a.self) return a;
+    var copy = {};
+    Object.keys(a).forEach(function (k) { copy[k] = a[k]; });
+    copy.comment = note;
+    return copy;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Jira and Google. Everything below runs in the extension's background worker.
 // ---------------------------------------------------------------------------
@@ -283,15 +342,30 @@ function isRegistered() {
   return !!(oauth && oauth.client_id && oauth.client_id.indexOf(CLIENT_ID_PLACEHOLDER) === -1);
 }
 
+var lastAuth = null;   // what Chrome said the last time a token was asked for
+var lastGoogle = null; // the last Google Calendar call that failed
+
 /** A Google sign-in token, or null. `interactive` may show Google's "Allow" window. */
 async function googleToken(interactive) {
   if (!isRegistered()) return null;
   try {
     var result = await chrome.identity.getAuthToken({ interactive: !!interactive });
-    return typeof result === 'string' ? result : (result && result.token) || null;
+    var token = typeof result === 'string' ? result : (result && result.token) || null;
+    if (token) {
+      lastAuth = { ok: true, at: Date.now(), interactive: !!interactive, scopes: (result && result.grantedScopes) || null };
+      // Kept so that a short refusal from Chrome does not look like "not connected".
+      await chrome.storage.local.set({ jscToken: { token: token, until: Date.now() + 50 * 60000 } });
+      return token;
+    }
+    lastAuth = { ok: false, at: Date.now(), interactive: !!interactive, why: 'no token returned' };
   } catch (e) {
-    return null;
+    lastAuth = { ok: false, at: Date.now(), interactive: !!interactive, why: String(e && e.message || e) };
   }
+  if (!interactive) {
+    var kept = (await chrome.storage.local.get('jscToken')).jscToken;
+    if (kept && kept.token && kept.until > Date.now()) return kept.token;
+  }
+  return null;
 }
 
 async function gcal(method, path, body) {
@@ -304,12 +378,17 @@ async function gcal(method, path, body) {
       body: body ? JSON.stringify(body) : undefined
     });
     if (response.status === 401 && attempt === 0) {
+      lastGoogle = { at: Date.now(), call: method + ' ' + path.split('?')[0], status: 401 };
       await chrome.identity.removeCachedAuthToken({ token: token }); // expired: get a fresh one
+      await chrome.storage.local.remove('jscToken');
       continue;
     }
     if (response.status === 204) return null;
     var text = await response.text();
-    if (!response.ok) throw new Error('google-' + response.status + ' ' + text.slice(0, 200));
+    if (!response.ok) {
+      lastGoogle = { at: Date.now(), call: method + ' ' + path.split('?')[0], status: response.status, text: text.slice(0, 300) };
+      throw new Error('google-' + response.status + ' ' + text.slice(0, 200));
+    }
     return text ? JSON.parse(text) : null;
   }
   throw new Error('google-signin');
@@ -423,4 +502,41 @@ function explain(error) {
   if (/^jira-/.test(text)) return 'Jira could not be read (' + text.slice(5) + '). Try again in a minute.';
   if (/^google-/.test(text)) return 'Google Calendar could not be updated (' + text.slice(7, 10) + ').';
   return 'Something went wrong: ' + text.slice(0, 120);
+}
+
+/**
+ * Looks at the next two weeks for invitations that overlap a ticket block and
+ * adds a note to the person's reply, which Google sends to the organiser.
+ * The answer itself is left as it was. Each invitation gets one note, once.
+ */
+async function sendHeadsUps() {
+  if (!(await googleToken(false))) return { ok: true, sent: 0 };
+  var saved = await chrome.storage.local.get(['jscHeadsUpDone', 'jscHeadsUpLog']);
+  var done = saved.jscHeadsUpDone || {};
+  var now = new Date();
+  var path = '/calendars/primary/events?singleEvents=true&maxResults=250&orderBy=startTime' +
+    '&timeMin=' + encodeURIComponent(now.toISOString()) +
+    '&timeMax=' + encodeURIComponent(new Date(now.getTime() + 14 * 86400000).toISOString());
+  var events = [];
+  var pageToken = null;
+  do {
+    var data = await gcal('GET', path + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''));
+    events = events.concat(data.items || []);
+    pageToken = data.nextPageToken || null;
+  } while (pageToken);
+
+  var clashes = findClashes(events, done);
+  var log = saved.jscHeadsUpLog || [];
+  for (var i = 0; i < clashes.length; i++) {
+    var c = clashes[i];
+    await gcal('PATCH', '/calendars/primary/events/' + encodeURIComponent(c.invite.id) + '?sendUpdates=all',
+      { attendees: withNote(c.invite.attendees, headsUpNote(c.ticket)) });
+    done[c.invite.id] = Date.now();
+    log.unshift({ at: Date.now(), meeting: String(c.invite.summary || 'a meeting'), ticket: String(c.ticket.summary || ''),
+      to: (c.invite.organizer && (c.invite.organizer.displayName || c.invite.organizer.email)) || 'the organiser' });
+  }
+  // Forget invitations from more than 30 days ago, and keep the last few notes for the panel.
+  Object.keys(done).forEach(function (id) { if (Date.now() - done[id] > 30 * 86400000) delete done[id]; });
+  await chrome.storage.local.set({ jscHeadsUpDone: done, jscHeadsUpLog: log.slice(0, 5) });
+  return { ok: true, sent: clashes.length, last: log[0] || null };
 }

@@ -10,8 +10,10 @@ var REFRESH_ALARM = 'jsc-refresh';
 var REFRESH_MINUTES = 15;
 
 async function refreshIfWanted() {
-  var saved = await chrome.storage.local.get('jscAuto');
-  if (!saved.jscAuto || !(await googleToken(false))) return;
+  // On unless switched off, and only once the person has planned at least once:
+  // nothing is put on a calendar that they did not ask for.
+  var saved = await chrome.storage.local.get(['jscAuto', 'jscPlanned']);
+  if (saved.jscAuto === false || !saved.jscPlanned || !(await googleToken(false))) return;
   try {
     await planSprint({ onlyIfChanged: true });
   } catch (e) {
@@ -21,12 +23,41 @@ async function refreshIfWanted() {
 
 async function setAuto(on) {
   await chrome.storage.local.set({ jscAuto: !!on });
-  if (on) chrome.alarms.create(REFRESH_ALARM, { periodInMinutes: REFRESH_MINUTES });
-  else chrome.alarms.clear(REFRESH_ALARM);
 }
+
+var HEADSUP_ALARM = 'jsc-headsup';
+var HEADSUP_MINUTES = 2;
+
+async function headsUpIfWanted() {
+  var saved = await chrome.storage.local.get('jscHeadsUp');
+  if (saved.jscHeadsUp === false) return { ok: true, sent: 0 }; // on unless switched off
+  try {
+    return await sendHeadsUps();
+  } catch (e) {
+    console.warn('Slotwise: heads-up not sent.', explain(e));
+    return { ok: false, message: explain(e) };
+  }
+}
+
+async function setHeadsUp(on) {
+  await chrome.storage.local.set({ jscHeadsUp: !!on });
+}
+
+// Both timers always run; each job checks for itself whether it is wanted and connected.
+function ensureAlarms() {
+  [[REFRESH_ALARM, REFRESH_MINUTES], [HEADSUP_ALARM, HEADSUP_MINUTES]].forEach(function (pair) {
+    chrome.alarms.get(pair[0], function (existing) {
+      if (!existing) chrome.alarms.create(pair[0], { periodInMinutes: pair[1] });
+    });
+  });
+}
+ensureAlarms();
+chrome.runtime.onInstalled.addListener(ensureAlarms);
+chrome.runtime.onStartup.addListener(ensureAlarms);
 
 chrome.alarms.onAlarm.addListener(function (alarm) {
   if (alarm.name === REFRESH_ALARM) refreshIfWanted();
+  if (alarm.name === HEADSUP_ALARM) headsUpIfWanted();
 });
 
 var handlers = {
@@ -34,15 +65,20 @@ var handlers = {
     return jiraFetch(message.site, message.path);
   },
   'jsc-google-status': async function () {
-    var saved = await chrome.storage.local.get('jscAuto');
-    return { registered: isRegistered(), connected: !!(await googleToken(false)), auto: !!saved.jscAuto };
+    var saved = await chrome.storage.local.get(['jscAuto', 'jscHeadsUp', 'jscHeadsUpLog']);
+    return { registered: isRegistered(), connected: !!(await googleToken(false)), auto: saved.jscAuto !== false,
+      headsUp: saved.jscHeadsUp !== false, lastHeadsUp: (saved.jscHeadsUpLog || [])[0] || null,
+      debug: { auth: lastAuth, google: lastGoogle, version: chrome.runtime.getManifest().version } };
   },
   'jsc-google-connect': async function () {
     var token = await googleToken(true);
+    if (token) headsUpIfWanted();
     return { ok: !!token, message: token ? '' : 'Google Calendar was not connected.' };
   },
-  'jsc-plan': function () {
-    return planSprint({});
+  'jsc-plan': async function () {
+    var result = await planSprint({});
+    await chrome.storage.local.set({ jscPlanned: true }); // from now on the plan follows Jira
+    return result;
   },
   // The plan as a list, for the panel to place through Google's own page
   // when Google Calendar is not connected. `skip` holds tickets already placed.
@@ -75,8 +111,26 @@ var handlers = {
     if (message.on) refreshIfWanted();
     return { ok: true };
   },
+  'jsc-headsup': async function (message) {
+    await setHeadsUp(message.on);
+    return message.on ? headsUpIfWanted() : { ok: true, sent: 0 };
+  },
+  // For the person building Slotwise: reload a hand-loaded copy without opening the extensions page.
+  'jsc-dev-reload': async function () {
+    if ('update_url' in chrome.runtime.getManifest()) return { ok: false };
+    setTimeout(function () { chrome.runtime.reload(); }, 100);
+    return { ok: true };
+  },
+  'jsc-debug': async function (message) {
+    var out = { auth: lastAuth, google: lastGoogle, version: chrome.runtime.getManifest().version };
+    if (message.run === 'headsup') { try { out.result = await sendHeadsUps(); } catch (e) { out.error = String(e && e.message || e); } }
+    if (message.run === 'token') { out.token = !!(await googleToken(false)); out.auth = lastAuth; }
+    out.google = lastGoogle;
+    return out;
+  },
   'jsc-opened': async function () {
     refreshIfWanted(); // Calendar was opened: catch up in the background
+    headsUpIfWanted();
     return { ok: true };
   }
 };

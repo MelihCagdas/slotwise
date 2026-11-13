@@ -2,7 +2,7 @@ import React from 'react';
 import {AbsoluteFill, Sequence, Audio, staticFile, useCurrentFrame, interpolate} from 'remotion';
 import {C, tween, appear} from './theme';
 import {page, ui, shadow, sec, Clip, Tag, Fade, Mark, S, mono, EventCard} from './shared';
-import {OpenDemo, DragDemo, PlanDemo, ViewsDemo, CustomDemo} from './Demo';
+import {OpenDemo, DragDemo, PlanDemo, ViewsDemo, CustomDemo, HeadsDemo} from './Demo';
 
 // The voice-over, line by line: [file, length in seconds, key phrases].
 // A key phrase is [where in the line it is spoken (0 to 1), the words to show].
@@ -15,12 +15,13 @@ const VO = {
   drag: ['l5', 2.93, [[0.0, 'Search'], [0.62, 'Drag onto a slot'], [1.5, 'Stretch to fit']]],
   plan: ['l6', 5.88, [[0.08, 'Plan tasks'], [0.30, 'Your whole week, laid out'], [0.58, 'Work in progress first'], [0.80, 'Sized by story points']]],
   team: ['l7', 6.92, [[0.0, 'A real calendar event'], [0.42, 'Visible across time zones'], [0.76, 'They know when not to book you']]],
+  heads: ['l10', 7.0, [[0.0, 'A meeting lands on your ticket'], [0.3, 'The organiser gets a heads-up'], [0.64, 'Jira changes, your plan follows']]],
   values: ['l8', 3.11, []],
   start: ['l9', 3.71, []],
 };
 
 // Scene lengths in seconds.
-const LEN = {hook: 5.9, pain: 8.0, name: 2.2, pool: 5.4, drag: 6.6, plan: 7.2, team: 7.6, custom: 5.2, values: 4.4, start: 6.8};
+const LEN = {hook: 5.9, pain: 8.0, name: 2.2, pool: 5.4, drag: 6.6, plan: 7.2, team: 7.6, heads: 7.8, custom: 4.2, values: 4.4, start: 6.0};
 export const PROMO_FRAMES = sec(Object.values(LEN).reduce((a, b) => a + b, 0));
 
 const rise = (f, at, len = 10) => ({opacity: appear(f, at, len), transform: `translateY(${(1 - appear(f, at, len)) * 12}px)`});
@@ -246,17 +247,18 @@ export const Promo = () => {
   add('drag', <Shot line="drag"><DragDemo /></Shot>);
   add('plan', <Shot line="plan"><PlanDemo /></Shot>);
   add('team', <Shot line="team"><ViewsDemo /></Shot>);
+  add('heads', <Shot line="heads"><HeadsDemo /></Shot>);
   add('custom', (
     <AbsoluteFill style={page}>
-      <Cut from={0} length={2.7}>
+      <Cut from={0} length={2.2}>
         <AbsoluteFill style={{background: S.bg}} />
         <CustomDemo part={0} />
-        <div style={{position: 'absolute', left: 0, right: 0, bottom: 56, display: 'flex', justifyContent: 'center'}}><EventCard text="Customise how it plans" time="16:30" /></div>
+        <div style={{position: 'absolute', left: 0, right: 0, bottom: 56, display: 'flex', justifyContent: 'center'}}><EventCard text="Customise how it plans" time="18:00" /></div>
       </Cut>
-      <Cut from={2.7} length={2.5}>
+      <Cut from={2.2} length={2.0}>
         <AbsoluteFill style={{background: S.bg}} />
         <CustomDemo part={1} />
-        <div style={{position: 'absolute', left: 0, right: 0, bottom: 56, display: 'flex', justifyContent: 'center'}}><EventCard text="Fold it away when you need the space" time="17:00" /></div>
+        <div style={{position: 'absolute', left: 0, right: 0, bottom: 56, display: 'flex', justifyContent: 'center'}}><EventCard text="Fold it away when you need the space" time="18:30" /></div>
       </Cut>
     </AbsoluteFill>
   ));
