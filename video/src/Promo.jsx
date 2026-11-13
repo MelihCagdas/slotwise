@@ -1,106 +1,108 @@
 import React from 'react';
-import {AbsoluteFill, Sequence, Audio, staticFile, useCurrentFrame, spring, useVideoConfig, interpolate} from 'remotion';
+import {AbsoluteFill, Sequence, Audio, staticFile, useCurrentFrame, interpolate} from 'remotion';
 import {C, tween, appear} from './theme';
-import {page, ui, shadow, sec, Clip, Tag, Fade, Mark, H, gradText} from './shared';
+import {page, ui, shadow, sec, Clip, Tag, Fade, Mark, S, mono} from './shared';
 
 // The voice-over, line by line: [file, length in seconds, words shown on screen]
 const VO = {
-  hook: ['l1', 4.49, 'Jira knows what you promised. Your calendar knows where your time goes. They never meet!'],
-  pain: ['l2', 5.69, "On a remote team, nobody sees you're heads-down. So an empty slot looks free, meetings pile on, and real work slips."],
-  name: ['l3', 1.20, 'Meet Slotwise!'],
+  hook: ['l1', 4.49, ''],
+  pain: ['l2', 6.41, "On a remote team, nobody sees you're heads-down. So an empty slot looks free, meetings pile on, and real work slips."],
+  name: ['l3', 1.20, ''],
   pool: ['l4', 2.87, 'Your Jira tickets, right beside your Google Calendar.'],
   drag: ['l5', 3.53, 'Search. Drag it onto a slot. Stretch it to fit.'],
   plan: ['l6', 5.88, 'Or hit Auto-plan, and your whole week is laid out. Work in progress first, sized by story points.'],
-  team: ['l7', 6.69, "Every ticket is a real calendar event. So across time zones, your team sees what you're on, and when not to book you."],
-  values: ['l8', 3.60, 'Transparency first. Respect for time. Real focus.'],
-  start: ['l9', 3.94, 'No token. No server. Free, and open source. Get Slotwise!'],
+  team: ['l7', 6.03, "Every ticket is a real calendar event. So across time zones, your team sees what you're on, and when not to book you."],
+  values: ['l8', 3.60, ''],
+  start: ['l9', 3.94, ''],
 };
 
 // Scene lengths in seconds.
-const LEN = {hook: 5.0, pain: 6.2, name: 2.0, pool: 3.4, drag: 4.4, plan: 7.0, team: 7.1, custom: 2.4, values: 4.4, start: 6.6};
+const LEN = {hook: 5.0, pain: 6.9, name: 2.0, pool: 3.4, drag: 4.4, plan: 7.0, team: 6.5, custom: 2.4, values: 4.4, start: 6.6};
 export const PROMO_FRAMES = sec(Object.values(LEN).reduce((a, b) => a + b, 0));
 
+const rise = (f, at, len = 10) => ({opacity: appear(f, at, len), transform: `translateY(${(1 - appear(f, at, len)) * 12}px)`});
+
 /**
- * Plays one voice-over line. With `show`, its words appear as they are
- * spoken: said words in white, the word being said in yellow, the rest dim.
+ * Plays one voice-over line. With words to show, they darken as they are
+ * spoken, and the calendar's red "now" line runs underneath, keeping time.
  */
-const Say = ({line, at = 0.25, show = true, size = 46, bottom = 34}) => {
+const Say = ({line, at = 0.2, bottom = 44, size = 40}) => {
   const f = useCurrentFrame();
   const [file, seconds, text] = VO[line];
+  const audio = <Sequence from={sec(at)}><Audio src={staticFile(`vo/${file}.mp3`)} /></Sequence>;
+  if (!text) return audio;
   const words = text.split(' ');
   const total = text.length;
+  const progress = tween(f, sec(at), sec(at) + sec(seconds), 0, 1, (t) => t);
   let seen = 0;
   return (
     <>
-      <Sequence from={sec(at)}><Audio src={staticFile(`vo/${file}.mp3`)} /></Sequence>
-      {show ? (
-        <div style={{position: 'absolute', left: 150, right: 150, bottom, textAlign: 'center', fontSize: size, fontWeight: 800,
-          letterSpacing: -1, lineHeight: 1.22}}>
+      {audio}
+      <div style={{position: 'absolute', left: 260, right: 260, bottom, textAlign: 'center'}}>
+        <div style={{fontSize: size, fontWeight: 500, letterSpacing: -0.6, lineHeight: 1.28}}>
           {words.map((w, i) => {
             const start = sec(at) + (seen / total) * sec(seconds) * 0.95;
-            const end = sec(at) + ((seen + w.length + 1) / total) * sec(seconds) * 0.95;
             seen += w.length + 1;
-            const said = appear(f, start, 4);
-            const now = f >= start && f < end + 2;
-            return <span key={i} style={{display: 'inline-block', marginRight: '0.26em', color: now ? H.yellow : said > 0 ? H.text : H.faint,
-              transform: `translateY(${(1 - said) * 8}px) scale(${now ? 1.08 : 1})`}}>{w}</span>;
+            return <span key={i} style={{color: f >= start ? S.ink : S.muted, marginRight: '0.26em', display: 'inline-block'}}>{w}</span>;
           })}
         </div>
-      ) : null}
+        <div style={{position: 'relative', height: 12, marginTop: 16}}>
+          <div style={{position: 'absolute', left: 0, right: 0, top: 5, height: 1, background: S.line}} />
+          <div style={{position: 'absolute', left: 0, top: 4, height: 3, width: `${progress * 100}%`, background: S.now}} />
+          <div style={{position: 'absolute', left: `${progress * 100}%`, top: 0, width: 11, height: 11, marginLeft: -5, borderRadius: 6, background: S.now}} />
+        </div>
+      </div>
     </>
   );
 };
 
 const KIND = {doing: [C.doing, C.doingBg], review: [C.review, C.reviewBg], todo: [C.todo, C.todoBg]};
 const Ticket = ({k, summary, status, kind}) => (
-  <div style={{background: C.card, border: `1px solid ${C.line}`, borderLeft: `6px solid ${KIND[kind][0]}`, borderRadius: 10,
-    padding: '9px 12px', marginBottom: 10}}>
+  <div style={{background: C.card, border: `1px solid ${C.line}`, borderLeft: `4px solid ${KIND[kind][0]}`, borderRadius: 8,
+    padding: '8px 12px', marginBottom: 8}}>
     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-      <span style={{color: C.blue, fontWeight: 700, fontSize: 16}}>{k}</span>
-      <span style={{background: KIND[kind][1], color: KIND[kind][0], fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20}}>{status}</span>
+      <span style={{color: C.blue, fontWeight: 600, fontSize: 16}}>{k}</span>
+      <span style={{background: KIND[kind][1], color: KIND[kind][0], fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 10}}>{status}</span>
     </div>
     <div style={{fontSize: 16, marginTop: 4}}>{summary}</div>
   </div>
 );
 
-// 1. Jira and the calendar never meet.
+// 1. Jira and the calendar never meet. The red line between them is the gap.
 const Hook = () => {
   const f = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  const line = (at, text) => (
-    <div style={{fontSize: 62, fontWeight: 700, letterSpacing: -1.5, color: H.dim, opacity: appear(f, at, 8),
-      transform: `translateY(${(1 - appear(f, at, 10)) * 24}px)`}}>{text}</div>
-  );
-  const slam = spring({frame: f - 104, fps, config: {damping: 11, stiffness: 190}});
-  const apart = tween(f, 100, 128, 0, 120);
-  const card = {...ui, position: 'absolute', top: 520, width: 520, height: 330, background: C.card, borderRadius: 24,
-    boxShadow: shadow, padding: 22, boxSizing: 'border-box'};
+  const apart = tween(f, 100, 126, 0, 96);
+  const card = {...ui, position: 'absolute', top: 500, width: 520, height: 320, background: S.surface, borderRadius: 16,
+    border: `1px solid ${S.line}`, boxShadow: shadow, padding: 24, boxSizing: 'border-box'};
+  const gap = tween(f, 104, 128, 0, 1);
   return (
-    <AbsoluteFill style={{...page, alignItems: 'center'}}>
-      <div style={{marginTop: 70, textAlign: 'center', lineHeight: 1.22}}>
-        {line(8, 'Jira knows what you promised.')}
-        {line(48, 'Your calendar knows where your time goes.')}
-        <div style={{fontSize: 132, fontWeight: 800, letterSpacing: -5, marginTop: 10, opacity: Math.min(1, slam * 1.4),
-          transform: `scale(${0.6 + 0.4 * slam})`, ...gradText()}}>They never meet.</div>
+    <AbsoluteFill style={page}>
+      <div style={{position: 'absolute', left: 0, right: 0, top: 96, textAlign: 'center'}}>
+        <div style={{fontSize: 56, fontWeight: 500, letterSpacing: -1.4, color: S.secondary, ...rise(f, 8)}}>Jira knows what you promised</div>
+        <div style={{fontSize: 56, fontWeight: 500, letterSpacing: -1.4, color: S.secondary, marginTop: 8, ...rise(f, 48)}}>Your calendar knows where your time goes</div>
+        <div style={{fontSize: 120, fontWeight: 600, letterSpacing: -4.5, marginTop: 20, color: S.brand, ...rise(f, 102, 8)}}>They never meet</div>
       </div>
-      <div style={{...card, left: 400 - apart, opacity: appear(f, 10, 10), transform: `rotate(${-tween(f, 100, 128, 0, 4)}deg)`}}>
-        <div style={{fontWeight: 800, fontSize: 22, marginBottom: 12}}>Sprint board</div>
+      <div style={{...card, left: 420 - apart, opacity: appear(f, 10, 10)}}>
+        <div style={{fontWeight: 600, fontSize: 20, marginBottom: 12}}>Sprint board</div>
         <Ticket k="APP-212" summary="Checkout redesign" status="In Progress" kind="doing" />
         <Ticket k="APP-198" summary="Fix export bug" status="In Progress" kind="doing" />
         <Ticket k="APP-205" summary="Search filters" status="In Review" kind="review" />
       </div>
-      <div style={{...card, left: 1000 + apart, opacity: appear(f, 50, 10), transform: `rotate(${tween(f, 100, 128, 0, 4)}deg)`}}>
-        <div style={{fontWeight: 800, fontSize: 22, marginBottom: 12}}>This week</div>
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, height: 236}}>
-          {[[10, 40], [70, 60], [30, 50], [100, 60], [50, 40]].map(([top, h], i) => (
-            <div key={i} style={{background: C.soft, borderRadius: 8, position: 'relative', overflow: 'hidden'}}>
-              <div style={{position: 'absolute', left: 5, right: 5, top, height: h, background: C.meeting, borderRadius: 6}} />
-              <div style={{position: 'absolute', left: 5, right: 5, top: top + h + 22, height: 30, background: C.meeting, borderRadius: 6}} />
+      <div style={{...card, left: 980 + apart, opacity: appear(f, 50, 10)}}>
+        <div style={{fontWeight: 600, fontSize: 20, marginBottom: 12}}>This week</div>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, height: 228}}>
+          {[[12, 40], [68, 60], [32, 48], [100, 60], [52, 40]].map(([top, h], i) => (
+            <div key={i} style={{background: '#f3f4f6', borderRadius: 6, position: 'relative', overflow: 'hidden'}}>
+              <div style={{position: 'absolute', left: 4, right: 4, top, height: h, background: '#dfe5ee', borderRadius: 4}} />
+              <div style={{position: 'absolute', left: 4, right: 4, top: top + h + 20, height: 28, background: '#dfe5ee', borderRadius: 4}} />
             </div>
           ))}
         </div>
       </div>
-      <Say line="hook" show={false} />
+      {/* the gap */}
+      <div style={{position: 'absolute', left: 959, top: 500 + 160 * (1 - gap), width: 3, height: 320 * gap, background: S.now}} />
+      <div style={{position: 'absolute', left: 955, top: 500 + 160 * (1 - gap) - 5, width: 11, height: 11, borderRadius: 6, background: S.now, opacity: gap > 0 ? 1 : 0}} />
+      <Say line="hook" />
     </AbsoluteFill>
   );
 };
@@ -108,39 +110,37 @@ const Hook = () => {
 // 2. An empty slot looks free, so meetings land on the work nobody can see.
 const Pain = () => {
   const f = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  const days = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
-  const W = 250, H2 = 62, X0 = 335, Y0 = 136;
-  const drop = (at) => spring({frame: f - at, fps, config: {damping: 11, stiffness: 190}});
-  const meetings = [[0, 1, 1, 'Standup', 0], [3, 2, 1.5, 'Customer call', 0], [1, 1.5, 1.5, 'Quick sync?', 104], [1, 3, 1, 'Catch-up', 116], [2, 2, 1.5, 'Planning review', 124], [1, 0.4, 1, '"Got 5 mins?"', 132]];
-  const pushed = tween(f, 142, 168, 0, 1);
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  const W = 248, HH = 60, X0 = 340, Y0 = 132;
+  const meetings = [[0, 1, 1, 'Standup', 0], [3, 2, 1.5, 'Customer call', 0], [1, 1.5, 1.5, 'Quick sync?', 104], [1, 3, 1, 'Catch-up', 116], [2, 2, 1.5, 'Planning review', 124], [1, 0.4, 1, 'Got 5 mins?', 132]];
+  const pushed = tween(f, 142, 166, 0, 1);
   return (
     <AbsoluteFill style={page}>
-      <div style={{...ui, position: 'absolute', left: X0 - 20, top: 46, width: 5 * W + 40, height: 620, background: C.card, borderRadius: 24, boxShadow: shadow}} />
+      <div style={{position: 'absolute', left: X0 - 20, top: 44, width: 5 * W + 40, height: 612, background: S.surface, borderRadius: 16,
+        border: `1px solid ${S.line}`, boxShadow: shadow}} />
       {days.map((d, i) => (
-        <div key={d} style={{...ui, position: 'absolute', left: X0 + i * W, top: 70, width: W, textAlign: 'center', fontSize: 15,
-          letterSpacing: 1.5, color: C.muted, fontWeight: 700, borderLeft: i ? `1px solid ${C.line}` : 'none', height: 580}}>{d}</div>
+        <div key={d} style={{position: 'absolute', left: X0 + i * W, top: 68, width: W, textAlign: 'center', fontFamily: mono, fontSize: 16,
+          color: S.muted, borderLeft: i ? `1px solid ${S.line}` : 'none', height: 572}}>{d}</div>
       ))}
       {Array.from({length: 8}, (_, i) => (
-        <div key={i} style={{position: 'absolute', left: X0, width: 5 * W, top: Y0 + i * H2, borderTop: `1px solid ${C.soft}`}} />
+        <div key={i} style={{position: 'absolute', left: X0, width: 5 * W, top: Y0 + i * HH, borderTop: `1px solid ${S.line}`}} />
       ))}
-      <div style={{...ui, position: 'absolute', left: X0 + W + 8, top: Y0 + 1.5 * H2, width: W - 16, height: 2.5 * H2 - 6, boxSizing: 'border-box',
-        border: `3px dashed ${pushed > 0.3 ? '#d93025' : C.blue}`, borderRadius: 10, padding: '8px 12px', fontSize: 19, fontWeight: 700,
-        color: pushed > 0.3 ? '#d93025' : C.blue, background: pushed > 0.3 ? '#fde8e6' : '#eef4ff', opacity: appear(f, 4, 10) * (1 - 0.45 * pushed),
-        transform: `translate(${pushed * 40}px, ${pushed * 270}px) rotate(${pushed * 7}deg)`}}>
+      <div style={{position: 'absolute', left: X0 + W + 8, top: Y0 + 1.5 * HH + 2, width: W - 16, height: 2.5 * HH - 4, boxSizing: 'border-box',
+        border: `2px dashed ${pushed > 0.3 ? S.now : S.event}`, borderRadius: 8, padding: '8px 12px', fontSize: 18, fontWeight: 600,
+        color: pushed > 0.3 ? S.now : S.event, background: S.surface, opacity: appear(f, 4, 10) * (1 - 0.4 * pushed),
+        transform: `translateY(${pushed * 248}px)`}}>
         APP-212 Checkout redesign
-        <div style={{fontWeight: 600, fontSize: 15, marginTop: 4}}>{pushed > 0.3 ? 'Pushed out. Again.' : 'Heads-down, but nobody can see it'}</div>
+        <div style={{fontWeight: 400, fontSize: 15, marginTop: 4}}>{pushed > 0.3 ? 'Pushed to next week' : 'Planned, but only in Jira'}</div>
       </div>
       {meetings.map(([d, h, len, label, at], i) => {
-        const s = drop(at);
-        return s <= 0 ? null : (
-          <div key={i} style={{...ui, position: 'absolute', left: X0 + d * W + 8, top: Y0 + h * H2 + 2, width: W - 16, height: len * H2 - 6, boxSizing: 'border-box',
-            background: at ? '#ffe2c2' : C.meeting, color: at ? '#8a4b00' : C.meetingInk, borderRadius: 10, padding: '8px 12px', fontSize: 19, fontWeight: 700,
-            opacity: Math.min(1, s), transform: `translateY(${(1 - s) * -80}px) rotate(${at ? (i % 2 ? 1.5 : -1.5) : 0}deg)`,
-            boxShadow: at ? '0 12px 26px rgba(138,75,0,.28)' : 'none'}}>{label}</div>
+        const a = appear(f, at, 8);
+        return a <= 0 ? null : (
+          <div key={i} style={{position: 'absolute', left: X0 + d * W + 8, top: Y0 + h * HH + 2, width: W - 16, height: len * HH - 4, boxSizing: 'border-box',
+            background: '#e4e9f1', color: '#2f3b4c', borderRadius: 8, padding: '8px 12px', fontSize: 18, fontWeight: 500,
+            border: `1px solid ${S.surface}`, opacity: a, transform: `translateY(${(1 - a) * -12}px)`}}>{label}</div>
         );
       })}
-      <Say line="pain" bottom={70} size={48} />
+      <Say line="pain" bottom={64} />
     </AbsoluteFill>
   );
 };
@@ -148,16 +148,14 @@ const Pain = () => {
 // 3. The name.
 const Name = () => {
   const f = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  const pop = spring({frame: f, fps, config: {damping: 11, stiffness: 180}});
-  const word = spring({frame: f - 5, fps, config: {damping: 12, stiffness: 170}});
   return (
     <AbsoluteFill style={{...page, alignItems: 'center', justifyContent: 'center'}}>
-      <div style={{transform: `scale(${pop}) rotate(${(1 - pop) * -20}deg)`}}><Mark size={140} /></div>
-      <div style={{fontSize: 170, fontWeight: 800, letterSpacing: -7, marginTop: 20, lineHeight: 1.05, opacity: Math.min(1, word * 1.3),
-        transform: `scale(${0.7 + 0.3 * word})`, ...gradText()}}>Slotwise</div>
-      <div style={{fontSize: 44, fontWeight: 700, color: H.text, opacity: appear(f, 16, 8)}}>Your Jira tickets, on your calendar.</div>
-      <Say line="name" at={0.3} show={false} />
+      <div style={{display: 'flex', alignItems: 'center', gap: 36, ...rise(f, 2, 8)}}>
+        <Mark size={132} />
+        <div style={{fontSize: 164, fontWeight: 600, letterSpacing: -7}}>Slotwise</div>
+      </div>
+      <div style={{fontSize: 40, color: S.secondary, marginTop: 28, ...rise(f, 12, 8)}}>Your Jira tickets, on your calendar</div>
+      <Say line="name" at={0.3} />
     </AbsoluteFill>
   );
 };
@@ -166,7 +164,7 @@ const Name = () => {
 const Shot = ({line, children}) => (
   <AbsoluteFill style={page}>
     {children}
-    <Say line={line} at={0.15} bottom={30} size={46} />
+    <Say line={line} at={0.15} bottom={36} size={38} />
   </AbsoluteFill>
 );
 
@@ -174,42 +172,50 @@ const Cut = ({from, length, children}) => (
   <Sequence from={sec(from)} durationInFrames={sec(length)}><Fade length={sec(length)}>{children}</Fade></Sequence>
 );
 
+// 8. The three promises, laid out the way the product lays out work: as slots in a day.
 const Values = () => {
   const f = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  const items = [['Transparency first.', 8, H.pink], ['Respect for time.', 44, H.yellow], ['Real focus.', 78, H.mint]];
+  const rows = [['09:00', 'Transparency first', 8], ['10:00', 'Respect for time', 44], ['11:00', 'Real focus', 78]];
+  const X = 420, Y = 276, RH = 176;
   return (
-    <AbsoluteFill style={{...page, alignItems: 'center', justifyContent: 'center'}}>
-      {items.map(([text, at, color]) => {
-        const s = spring({frame: f - at, fps, config: {damping: 12, stiffness: 190}});
-        return <div key={text} style={{fontSize: 128, fontWeight: 800, letterSpacing: -5, lineHeight: 1.12, color,
-          opacity: Math.min(1, s * 1.3), transform: `translateX(${(1 - s) * -80}px) scale(${0.85 + 0.15 * s})`}}>{text}</div>;
-      })}
-      <Say line="values" show={false} />
+    <AbsoluteFill style={page}>
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} style={{position: 'absolute', left: X + 150, right: 420, top: Y + i * RH, borderTop: `1px solid ${S.line}`}} />
+      ))}
+      {rows.map(([time, text, at], i) => (
+        <React.Fragment key={time}>
+          <div style={{position: 'absolute', left: X, top: Y + i * RH - 14, fontFamily: mono, fontSize: 24, color: S.muted}}>{time}</div>
+          <div style={{position: 'absolute', left: X + 168, right: 440, top: Y + i * RH + 12, height: RH - 24, boxSizing: 'border-box',
+            background: S.surface, border: `1px solid ${S.line}`, borderLeft: `6px solid ${S.event}`, borderRadius: 12,
+            padding: '0 36px', display: 'flex', alignItems: 'center', fontSize: 76, fontWeight: 600, letterSpacing: -2.6, ...rise(f, at, 9)}}>{text}</div>
+        </React.Fragment>
+      ))}
+      <Say line="values" />
     </AbsoluteFill>
   );
 };
 
 const Start = () => {
   const f = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  const chips = [['No token', 8, H.pink], ['No server', 30, H.yellow], ['Free and open source', 52, H.mint]];
-  const cta = spring({frame: f - 96, fps, config: {damping: 11, stiffness: 170}});
+  const facts = [['No token', 8], ['No server', 30], ['Free and open source', 52]];
   return (
-    <AbsoluteFill style={{...page, alignItems: 'center', justifyContent: 'center', textAlign: 'center'}}>
-      <div style={{opacity: appear(f, 0, 8)}}><Mark size={104} /></div>
-      <div style={{fontSize: 150, fontWeight: 800, letterSpacing: -6, lineHeight: 1.05, marginTop: 12, opacity: appear(f, 3, 8), ...gradText()}}>Slotwise</div>
-      <div style={{display: 'flex', gap: 18, marginTop: 26}}>
-        {chips.map(([text, at, color]) => (
-          <div key={text} style={{fontSize: 36, fontWeight: 800, padding: '14px 32px', borderRadius: 44, color: '#0b1024', background: color,
-            opacity: appear(f, at, 7), transform: `translateY(${(1 - appear(f, at, 9)) * 22}px)`, boxShadow: '0 12px 30px rgba(0,0,0,.35)'}}>{text}</div>
+    <AbsoluteFill style={{...page, alignItems: 'center', justifyContent: 'center'}}>
+      <div style={{display: 'flex', alignItems: 'center', gap: 28, ...rise(f, 0, 8)}}>
+        <Mark size={104} />
+        <div style={{fontSize: 128, fontWeight: 600, letterSpacing: -5.5}}>Slotwise</div>
+      </div>
+      <div style={{display: 'flex', gap: 40, marginTop: 44, fontSize: 38, color: S.secondary}}>
+        {facts.map(([text, at], i) => (
+          <div key={text} style={{display: 'flex', alignItems: 'center', gap: 40, ...rise(f, at, 8)}}>
+            {i ? <span style={{width: 1, height: 32, background: S.line}} /> : null}
+            <span>{text}</span>
+          </div>
         ))}
       </div>
-      <div style={{marginTop: 54, fontSize: 50, fontWeight: 800, color: '#0b1024', background: '#fff', padding: '20px 50px', borderRadius: 60,
-        boxShadow: '0 0 0 6px rgba(255,255,255,.18), 0 20px 50px rgba(0,0,0,.45)', opacity: Math.min(1, cta * 1.3), transform: `scale(${0.8 + 0.2 * cta})`}}>
+      <div style={{marginTop: 64, fontFamily: mono, fontSize: 40, color: S.surface, background: S.brand, padding: '20px 40px', borderRadius: 12, ...rise(f, 96, 10)}}>
         github.com/MelihCagdas/slotwise
       </div>
-      <Say line="start" show={false} />
+      <Say line="start" />
     </AbsoluteFill>
   );
 };
@@ -225,7 +231,7 @@ export const Promo = () => {
   add('hook', <Hook />);
   add('pain', <Pain />);
   add('name', <Name />);
-  add('pool', <Shot line="pool"><Clip name="c1" rate={1.3} zoom={1.16} focus={[0.86, 0.3]} length={sec(LEN.pool)} /></Shot>);
+  add('pool', <Shot line="pool"><Clip name="c1" rate={1.3} zoom={1.14} focus={[0.86, 0.3]} length={sec(LEN.pool)} /></Shot>);
   add('drag', (
     <Shot line="drag">
       <Cut from={0} length={1.3}><Clip name="c2" from={0.6} rate={3.0} zoom={1.3} focus={[0.88, 0.12]} length={36} /></Cut>
@@ -237,30 +243,30 @@ export const Promo = () => {
     <Shot line="plan">
       <Cut from={0} length={1.3}><Clip name="c6" from={0.3} rate={1.6} zoom={1.25} focus={[0.88, 0.85]} length={36} /></Cut>
       <Cut from={1.3} length={2.2}>
-        <Clip name="c6b" rate={26} width={380} ratio={1002 / 460} top={40} />
-        <Tag left={1190} top={90}>Sped up</Tag>
+        <Clip name="c6b" rate={26} width={380} ratio={1002 / 460} top={44} />
+        <Tag left={1180} top={64}>Sped up</Tag>
       </Cut>
       <Cut from={3.5} length={3.5}><Clip name="c7" from={7.6} rate={2.2} zoom={1.08} focus={[0.3, 0.1]} length={sec(3.5)} /></Cut>
     </Shot>
   ));
   add('team', (
     <Shot line="team">
-      <Clip name="c8" from={1.0} rate={1.4} ratio={510 / 1520} top={210} zoom={1.06} focus={[0.3, 0.3]} length={sec(LEN.team)} />
-      <Tag left={290} top={130}>Month view: this sprint and the next</Tag>
+      <Clip name="c8" from={1.0} rate={1.4} ratio={510 / 1520} top={220} zoom={1.05} focus={[0.3, 0.3]} length={sec(LEN.team)} />
+      <Tag left={276} top={160}>Month view</Tag>
     </Shot>
   ));
   add('custom', (
     <AbsoluteFill style={page}>
       <Clip name="c5" from={0.8} rate={5.2} zoom={1.35} focus={[0.9, 0.35]} length={sec(LEN.custom)} />
-      <div style={{position: 'absolute', left: 0, right: 0, bottom: 34, textAlign: 'center', fontSize: 50, fontWeight: 800, letterSpacing: -1}}>
-        Make it yours: <span style={gradText()}>your days, your statuses, sprint or not.</span>
+      <div style={{position: 'absolute', left: 0, right: 0, bottom: 64, textAlign: 'center', fontSize: 40, fontWeight: 500, letterSpacing: -0.6}}>
+        Set your working days, your statuses, sprint or no sprint
       </div>
     </AbsoluteFill>
   ));
   add('values', <Values />);
   add('start', <Start />, true);
   return (
-    <AbsoluteFill style={{background: '#0b1024'}}>
+    <AbsoluteFill style={{background: S.bg}}>
       <Audio src={staticFile('music/bed.mp3')}
         volume={(f) => interpolate(f, [0, 12, PROMO_FRAMES - 50, PROMO_FRAMES - 4], [0, 0.2, 0.2, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})} />
       {out}

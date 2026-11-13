@@ -1,69 +1,60 @@
 import React from 'react';
 import {AbsoluteFill, OffthreadVideo, staticFile, useCurrentFrame} from 'remotion';
-import {loadFont as loadDisplay} from '@remotion/google-fonts/BricolageGrotesque';
+import {loadFont as loadMono} from '@remotion/google-fonts/JetBrainsMono';
 import {C, fontFamily, appear} from './theme';
 
 export const FPS = 30;
 export const sec = (s) => Math.round(s * FPS);
 
-// Headlines and spoken words use a characterful display face; the product UI keeps Inter.
-export const display = loadDisplay().fontFamily;
+// One family for everything, plus a mono for times and small labels.
+export const mono = loadMono().fontFamily;
 
-// Colours for text and accents on the dark stage.
-export const H = {
-  text: '#ffffff', dim: 'rgba(255,255,255,.62)', faint: 'rgba(255,255,255,.26)',
-  pink: '#ff5c9a', amber: '#ffb020', yellow: '#ffd23f', mint: '#3ee6b5', violet: '#8b7bff',
-  grad: 'linear-gradient(92deg, #ff5c9a 0%, #ffb020 55%, #ffd23f 100%)',
-  gradCool: 'linear-gradient(92deg, #8b7bff 0%, #3ee6b5 100%)',
+// The two products it joins set the palette: Jira's blue for the brand,
+// Google Calendar's page grey, event blue, yellow and green, and the red
+// "now" line a calendar draws at the current time.
+export const S = {
+  bg: '#f8fafd', surface: '#ffffff', ink: '#172b4d', secondary: '#44546f', muted: '#8993a5',
+  line: 'rgba(9,30,66,.14)', brand: '#0c66e4', now: '#ea4335', event: '#1a73e8', yellow: '#fbbc04', green: '#34a853',
 };
+// Kept under the old names so every scene reads from the same place.
+export const H = {text: S.ink, dim: S.secondary, faint: S.muted};
 
-/** Text filled with a gradient. */
-export const gradText = (gradient = H.grad) => ({
-  backgroundImage: gradient, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
-});
+export const page = {fontFamily, color: S.ink, background: S.bg};
+export const ui = {fontFamily, color: C.ink};
+export const shadow = '0 1px 2px rgba(21,23,26,.06), 0 12px 32px rgba(21,23,26,.08)';
 
-export const page = {
-  fontFamily: display, color: H.text,
-  background: 'radial-gradient(1100px 700px at 8% -5%, rgba(139,123,255,.55) 0%, rgba(139,123,255,0) 62%), ' +
-    'radial-gradient(900px 620px at 100% 8%, rgba(255,92,154,.42) 0%, rgba(255,92,154,0) 60%), ' +
-    'radial-gradient(1000px 700px at 70% 115%, rgba(62,230,181,.30) 0%, rgba(62,230,181,0) 60%), #0b1024',
-};
-export const ui = {fontFamily, color: C.ink}; // for mock product pieces drawn on the stage
-export const shadow = '0 30px 80px rgba(0,0,0,.45)';
-
-/**
- * The Slotwise mark: a calendar page holding two ticket cards.
- * A calendar (rings on top, a white page) with tickets slotted into it.
- */
-export const Mark = ({size = 120, flat = false}) => (
-  <div style={{width: size, height: size, borderRadius: size * 0.24, background: 'linear-gradient(140deg, #6d5cff 0%, #ff5c9a 100%)',
-    position: 'relative', boxShadow: flat ? 'none' : '0 18px 50px rgba(255,92,154,.45)'}}>
-    {[27, 65].map((left) => (
-      <div key={left} style={{position: 'absolute', left: `${left}%`, top: '7%', width: '8%', height: '15%', borderRadius: size * 0.04, background: '#fff'}} />
-    ))}
-    <div style={{position: 'absolute', left: '13%', right: '13%', top: '27%', bottom: '13%', borderRadius: size * 0.09, background: '#fff', overflow: 'hidden'}}>
-      <div style={{position: 'absolute', left: '11%', top: '15%', width: '70%', height: '27%', borderRadius: size * 0.035, background: '#0b57d0'}}>
-        <div style={{position: 'absolute', left: 0, top: 0, bottom: 0, width: '16%', background: '#ffd23f', borderRadius: `${size * 0.035}px 0 0 ${size * 0.035}px`}} />
-      </div>
-      <div style={{position: 'absolute', left: '30%', top: '55%', width: '59%', height: '27%', borderRadius: size * 0.035, background: '#3ee6b5'}}>
-        <div style={{position: 'absolute', left: 0, top: 0, bottom: 0, width: '19%', background: '#0b1024', opacity: 0.85, borderRadius: `${size * 0.035}px 0 0 ${size * 0.035}px`}} />
+/** The Slotwise mark: a calendar page holding two ticket cards, on Jira blue. */
+export const Mark = ({size = 120}) => {
+  const r = size * 0.035;
+  return (
+    <div style={{width: size, height: size, borderRadius: size * 0.24, background: S.brand, position: 'relative'}}>
+      {[27, 65].map((left) => (
+        <div key={left} style={{position: 'absolute', left: `${left}%`, top: '7%', width: '8%', height: '15%', borderRadius: size * 0.04, background: '#fff'}} />
+      ))}
+      <div style={{position: 'absolute', left: '13%', right: '13%', top: '27%', bottom: '13%', borderRadius: size * 0.09, background: '#fff', overflow: 'hidden'}}>
+        <div style={{position: 'absolute', left: '11%', top: '15%', width: '70%', height: '27%', borderRadius: r, background: S.event}}>
+          <div style={{position: 'absolute', left: 0, top: 0, bottom: 0, width: '16%', background: S.yellow, borderRadius: `${r}px 0 0 ${r}px`}} />
+        </div>
+        <div style={{position: 'absolute', left: '30%', top: '55%', width: '59%', height: '27%', borderRadius: r, background: S.green}}>
+          <div style={{position: 'absolute', left: 0, top: 0, bottom: 0, width: '19%', background: S.ink, borderRadius: `${r}px 0 0 ${r}px`}} />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 /**
- * A clip of the real screen recording in a rounded window.
+ * A clip of the real screen recording in a plain window.
  * `from` is where in the clip to start (seconds), `rate` the playback speed,
  * `zoom`/`focus` an optional push-in towards a point (0..1 of the frame).
  */
-export const Clip = ({name, from = 0, rate = 1, width = 1400, ratio = 876 / 1520, top = 40, zoom = 1, focus = [0.5, 0.5], length = 90}) => {
+export const Clip = ({name, from = 0, rate = 1, width = 1400, ratio = 876 / 1520, top = 44, zoom = 1, focus = [0.5, 0.5], length = 90}) => {
   const f = useCurrentFrame();
   const z = 1 + (zoom - 1) * Math.min(1, f / Math.max(1, length));
   const height = Math.round(width * ratio);
   return (
-    <div style={{position: 'absolute', left: (1920 - width) / 2, top, width, height, borderRadius: 24, overflow: 'hidden',
-      boxShadow: `0 0 0 3px rgba(255,255,255,.16), 0 0 70px rgba(139,123,255,.35), ${shadow}`, background: '#fff'}}>
+    <div style={{position: 'absolute', left: (1920 - width) / 2, top, width, height, borderRadius: 16, overflow: 'hidden',
+      border: `1px solid ${S.line}`, boxShadow: shadow, background: S.surface}}>
       <OffthreadVideo src={staticFile(`rec/${name}.mp4`)} startFrom={sec(from)} playbackRate={rate} muted
         style={{width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', transform: `scale(${z})`,
           transformOrigin: `${focus[0] * 100}% ${focus[1] * 100}%`}} />
@@ -71,14 +62,14 @@ export const Clip = ({name, from = 0, rate = 1, width = 1400, ratio = 876 / 1520
   );
 };
 
-/** A small label on a clip, such as "Sped up". */
-export const Tag = ({children, left = 290, top = 66}) => (
-  <div style={{position: 'absolute', left, top, background: H.yellow, color: '#1a1300', fontSize: 24, fontWeight: 800,
-    padding: '8px 20px', borderRadius: 26, boxShadow: '0 10px 26px rgba(0,0,0,.35)'}}>{children}</div>
+/** A small note on a clip, such as "Sped up". */
+export const Tag = ({children, left = 276, top = 60}) => (
+  <div style={{position: 'absolute', left, top, background: S.surface, color: S.secondary, fontFamily: mono, fontSize: 20,
+    padding: '6px 12px', borderRadius: 8, border: `1px solid ${S.line}`}}>{children}</div>
 );
 
 /** Fades a scene in and out. */
 export const Fade = ({length, last, children}) => {
   const f = useCurrentFrame();
-  return <AbsoluteFill style={{opacity: Math.min(appear(f, 0, 5), last ? 1 : 1 - appear(f, length - 5, 5))}}>{children}</AbsoluteFill>;
+  return <AbsoluteFill style={{opacity: Math.min(appear(f, 0, 6), last ? 1 : 1 - appear(f, length - 6, 6))}}>{children}</AbsoluteFill>;
 };

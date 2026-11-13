@@ -4,7 +4,7 @@ import {Promo, PROMO_FRAMES} from './Promo';
 import {Recording, RECORDING_FRAMES} from './Recording';
 import {Mark} from './shared';
 
-const Icon = () => <Mark size={512} flat />;
+const Icon = () => <Mark size={512} />;
 
 const Root = () => (
   <>

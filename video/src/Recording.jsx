@@ -1,7 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Sequence, Audio, staticFile, useCurrentFrame, interpolate} from 'remotion';
 import {C, appear} from './theme';
-import {page, sec, Clip, Tag, Fade, Mark, H, gradText} from './shared';
+import {page, sec, Clip, Tag, Fade, Mark, S} from './shared';
 
 // The real screen recording, trimmed, with a line saying what is happening.
 // [clip, start in clip (s), length shown (s), playback speed, label, crop ratio]
@@ -23,8 +23,8 @@ export const RECORDING_FRAMES = sec(INTRO + PARTS.reduce((s, p) => s + p[2], 0) 
 const Label = ({text}) => {
   const f = useCurrentFrame();
   return (
-    <div style={{position: 'absolute', left: 0, right: 0, bottom: 40, textAlign: 'center', fontSize: 44, fontWeight: 800,
-      letterSpacing: -1, color: H.text, opacity: appear(f, 2, 10), transform: `translateY(${(1 - appear(f, 2, 12)) * 12}px)`}}>{text}</div>
+    <div style={{position: 'absolute', left: 0, right: 0, bottom: 40, textAlign: 'center', fontSize: 38, fontWeight: 500,
+      letterSpacing: -0.6, color: S.ink, opacity: appear(f, 2, 10), transform: `translateY(${(1 - appear(f, 2, 12)) * 12}px)`}}>{text}</div>
   );
 };
 
@@ -33,9 +33,9 @@ const Card = ({title, lines}) => {
   return (
     <AbsoluteFill style={{...page, alignItems: 'center', justifyContent: 'center', textAlign: 'center'}}>
       <div style={{opacity: appear(f, 0, 10)}}><Mark size={96} /></div>
-      <div style={{fontSize: 110, fontWeight: 800, letterSpacing: -4, marginTop: 20, opacity: appear(f, 4, 12), ...gradText()}}>{title}</div>
+      <div style={{fontSize: 104, fontWeight: 600, letterSpacing: -4, marginTop: 24, opacity: appear(f, 4, 12)}}>{title}</div>
       {lines.map((l, i) => (
-        <div key={l} style={{fontSize: 32, color: H.dim, marginTop: i ? 6 : 16, opacity: appear(f, 14 + i * 8, 12)}}>{l}</div>
+        <div key={l} style={{fontSize: 30, color: S.secondary, marginTop: i ? 8 : 20, opacity: appear(f, 14 + i * 8, 12)}}>{l}</div>
       ))}
     </AbsoluteFill>
   );
@@ -56,13 +56,13 @@ export const Recording = () => {
       {ratio && ratio > 1
         ? <Clip name={name} from={from} rate={rate} width={Math.round(860 / ratio)} ratio={ratio} top={46} />
         : <Clip name={name} from={from} rate={rate} ratio={ratio || 876 / 1520} top={ratio ? 200 : 40} />}
-      {tag ? <Tag left={ratio && ratio > 1 ? 1190 : 290} top={80}>{tag}</Tag> : null}
+      {tag ? <Tag left={ratio && ratio > 1 ? 1180 : 276} top={64}>{tag}</Tag> : null}
       <Label text={label} />
     </AbsoluteFill>
   )));
   add(OUTRO, <Card title="Slotwise" lines={['github.com/MelihCagdas/slotwise', 'Free and open source']} />, true);
   return (
-    <AbsoluteFill style={{background: '#0b1024'}}>
+    <AbsoluteFill style={{background: S.bg}}>
       <Audio src={staticFile('music/bed.mp3')} loop
         volume={(f) => interpolate(f, [0, 15, RECORDING_FRAMES - 60, RECORDING_FRAMES - 4], [0, 0.22, 0.22, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})} />
       {out}
